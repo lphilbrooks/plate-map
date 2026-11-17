@@ -74,12 +74,61 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .toast.show{opacity:1;transform:translateX(-50%)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #print{display:none}
+/* ---------- seeding calculator ---------- */
+main{grid-template-columns:300px minmax(0,1fr) 310px}
+aside.calc{border-right:0;border-left:1px solid var(--line);position:sticky;top:49px;max-height:calc(100vh - 49px);min-height:0;overflow:auto;overscroll-behavior:contain}
+body.nocalc main{grid-template-columns:300px minmax(0,1fr)}
+body.nocalc aside.calc{display:none}
+#calcBtn[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.calc h2{display:flex;align-items:center}
+.calc h2 .btn{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:400;font-size:12px}
+.calc input[type=text]{width:100%}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.r2 label.f{margin-top:10px}
+.unitrow{display:grid;grid-template-columns:1fr 112px;gap:6px}
+.src{font-size:11.5px;color:var(--muted);margin:6px 0 0}
+.src a{color:var(--muted)}
+.auto{font-size:11.5px;color:var(--muted)}
+.auto .btn.link{font-size:11.5px;padding:0}
+.cres{margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fbfbfa}
+.cres h3{font-size:12px;margin:0 0 6px;font-weight:600}
+.cres dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0 0 10px;font-size:13px}
+.cres dt{color:var(--muted)}
+.cres dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.cres dd b{font-weight:600}
+.cres .mix{border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
+.warn{background:#fff6e5;border:1px solid #f2d39b;color:#7a4b00;border-radius:6px;padding:7px 9px;font-size:12.5px;margin:8px 0 0}
+.cres .acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.recs{margin-top:16px}
+.recs p{font-size:12px;color:var(--muted);margin:0 0 8px}
+.rec{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:6px;padding:7px 9px;margin-bottom:6px;cursor:pointer}
+.rec:hover{border-color:#bdbdbb}
+.rec b{display:block;font-weight:600;font-size:12.5px}
+.rec span{font-size:12px;color:var(--muted)}
+.recs .caveat{background:#f3f4f6;border-radius:6px;padding:7px 9px;color:#444}
+@media (max-width:1299px){
+  main{grid-template-columns:300px minmax(0,1fr)}
+  main > aside:first-child{grid-row:span 2;align-self:stretch}
+  aside.calc{grid-column:2;position:static;max-height:none;overflow:visible;border-left:0;border-top:1px solid var(--line);padding:18px 28px 28px}
+  .calc .cgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;max-width:1004px;margin:0 auto}
+  .calc .cgrid > div > .cres:first-child{margin-top:0}
+  .calc h2{max-width:1004px;margin-left:auto;margin-right:auto}
+}
 @media (max-width:860px){
-  main{grid-template-columns:1fr}
+  main,body.nocalc main{grid-template-columns:1fr}
   aside{border-right:0;border-bottom:1px solid var(--line);min-height:0}
+  main > aside:first-child{grid-row:auto}
+  aside.calc{grid-column:auto;padding:18px 16px 28px}
+  .calc .cgrid{grid-template-columns:1fr;gap:0}
+  .calc .cgrid > div > .cres:first-child{margin-top:16px}
   .stage{padding:16px}
   header{padding:10px 16px}
   header h1 span{display:none}
+}
+@media (max-width:520px){
+  header{flex-wrap:wrap;position:static;gap:6px}
+  header h1{flex-basis:100%}
+  header .btn{padding:6px 9px}
 }
 @media print{
   @page{size:landscape;margin:12mm}
@@ -97,6 +146,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
   <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
   <button class="btn" id="openBtn" title="Open a .json plate map saved from this tool">Open</button>
   <button class="btn" id="newBtn">New</button>
+  <button class="btn" id="calcBtn" aria-pressed="true" aria-controls="calc" title="Show or hide the seeding calculator">Calculator</button>
   <input type="file" id="fileIn" accept=".json,application/json" hidden>
 </header>
 
@@ -137,6 +187,48 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
   <div class="bar" id="selBar"></div>
   <div class="sr" id="live" aria-live="polite"></div>
 </div>
+
+<aside class="calc" id="calc" aria-labelledby="calcH">
+  <h2 id="calcH">Seeding calculator <button class="btn link" id="calcReset" title="Reset the calculator to defaults">Reset</button></h2>
+  <div class="cgrid">
+  <div class="cin">
+    <label class="f" for="cVessel">Vessel</label>
+    <select id="cVessel"></select>
+    <div class="r2">
+      <div><label class="f" for="cArea">Area per well (cm²)</label><input type="text" id="cArea" inputmode="decimal" autocomplete="off"></div>
+      <div><label class="f" for="cVol">Medium per well (mL)</label><input type="text" id="cVol" inputmode="decimal" autocomplete="off"></div>
+    </div>
+    <p class="src" id="cSrc"></p>
+
+    <label class="f" for="cDen">Target seeding density</label>
+    <div class="unitrow">
+      <input type="text" id="cDen" inputmode="decimal" autocomplete="off" placeholder="e.g. 3e4">
+      <select id="cUnit" aria-label="Density unit">
+        <option value="cm2">cells/cm²</option>
+        <option value="well">cells/well</option>
+        <option value="ml">cells/mL</option>
+      </select>
+    </div>
+
+    <label class="f" for="cStock">Cell suspension you counted (cells/mL)</label>
+    <input type="text" id="cStock" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.2e6, 1.2 x 10^6 or 1,200,000">
+
+    <div class="r2">
+      <div><label class="f" for="cWells">Wells to seed</label><input type="text" id="cWells" inputmode="numeric" autocomplete="off"></div>
+      <div><label class="f" for="cExtra">Extra volume (%)</label><input type="text" id="cExtra" inputmode="decimal" autocomplete="off"></div>
+    </div>
+    <div class="auto" id="cWellsSrc"></div>
+  </div>
+  <div>
+    <div class="cres" id="cOut" aria-live="polite"></div>
+    <div class="recs">
+      <h2>Rough starting densities</h2>
+      <p class="caveat"><b>Depends on the cell type.</b> These are starting points only. The right density changes with the cell line, passage, medium, surface, assay and how long until you read out. Check your supplier's datasheet and test a few densities on a pilot plate. Click one to use it.</p>
+      <div id="cRecs"></div>
+    </div>
+  </div>
+  </div>
+</aside>
 </main>
 
 <div id="print"></div>
@@ -434,7 +526,7 @@ function syncInputs() {
   if ($('#title').value !== state.title) $('#title').value = state.title;
   if ($('#notes').value !== state.notes) $('#notes').value = state.notes;
 }
-function renderAll() { renderSeg(); renderGroups(); renderPlate(); renderBar(); syncInputs(); persist(); commit(); }
+function renderAll() { renderSeg(); renderGroups(); renderPlate(); renderBar(); syncInputs(); persist(); commit(); calcSync(); }
 function changed() { renderGroups(); renderPlate(); renderBar(); persist(); commit(); }
 
 /* ---------- edits ---------- */
@@ -508,7 +600,7 @@ function selectLine(t, add) {
   else { if (!add) sel.clear(); ids.forEach(i => sel.add(i)); }
   selChanged();
 }
-function selChanged() { paintSel(); renderBar(); }
+function selChanged() { paintSel(); renderBar(); calcSync(); }
 function clearSelection() { if (drag) return; sel.clear(); anchor = cursor = null; selChanged(); }
 function dragTo(id) {
   if (id !== drag.id) drag.moved = true;
@@ -703,16 +795,246 @@ document.querySelector('.exp').addEventListener('click', async e => {
 let tt;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600); }
 
+/* ---------- seeding calculator ---------- */
+/* Areas, seeding and confluent counts, and medium ranges: Thermo Fisher "Useful numbers for cell culture"
+   (Gibco Cell Culture Basics). Default volumes are picked from inside those ranges. */
+const THERMO = 'https://www.thermofisher.com/us/en/home/references/gibco-cell-culture-basics/cell-culture-protocols/cell-culture-useful-numbers.html';
+const VESSELS = {
+  p6:   {name: '6-well plate',   area: 9.6,   vol: 2,    range: '1–3 mL',     plate: 6},
+  p12:  {name: '12-well plate',  area: 3.5,   vol: 1,    range: '1–2 mL',     plate: 12},
+  p24:  {name: '24-well plate',  area: 1.9,   vol: 0.5,  range: '0.5–1 mL',   plate: 24},
+  p48:  {name: '48-well plate',  area: 1.1,   vol: 0.3,  range: '0.2–0.4 mL', plate: 48},
+  p96:  {name: '96-well plate',  area: 0.32,  vol: 0.1,  range: '0.1–0.2 mL', plate: 96},
+  p384: {name: '384-well plate', area: 0.084, vol: 0.08, range: '0.08 mL',    plate: 384},
+  d35:  {name: '35 mm dish',     area: 8.8,   vol: 2,    range: '2 mL'},
+  d60:  {name: '60 mm dish',     area: 21.5,  vol: 5,    range: '5 mL'},
+  d100: {name: '100 mm dish',    area: 56.7,  vol: 12,   range: '12 mL'},
+  d150: {name: '150 mm dish',    area: 145,   vol: 30,   range: '30 mL'},
+  t25:  {name: 'T-25 flask',     area: 25,    vol: 5,    range: '3–5 mL'},
+  t75:  {name: 'T-75 flask',     area: 75,    vol: 15,   range: '8–15 mL'},
+  t175: {name: 'T-175 flask',    area: 175,   vol: 40,   range: '35–53 mL'},
+  t225: {name: 'T-225 flask',    area: 225,   vol: 50,   range: '45–68 mL'}
+};
+const RECS = [
+  {name: 'Fast-growing adherent line (e.g. HeLa)', den: 3e4, unit: 'cm2', show: '≈ 3 × 10⁴ cells/cm²',
+   note: 'Thermo\'s table seeds ~3 × 10⁴/cm² for HeLa, which reach ~1.25 × 10⁵/cm² at confluence.', src: THERMO, by: 'Thermo Fisher'},
+  {name: 'Mesenchymal stromal cells (expansion)', den: 5e3, unit: 'cm2', show: '5 × 10³ cells/cm²',
+   note: 'ATCC adipose-derived MSC protocol; a Thermo MSC protocol gives 5–7 × 10³/cm².', src: 'https://www.atcc.org/products/pcs-500-011', by: 'ATCC PCS-500-011'},
+  {name: 'Endothelial cells (e.g. HUVEC)', den: 7.5e3, unit: 'cm2', show: '5 × 10³ – 1 × 10⁴ cells/cm²',
+   note: 'PromoCell\'s recommended plating range; uses the midpoint.', src: 'https://promocell.com/?p=26486', by: 'PromoCell'},
+  {name: 'Suspension line (e.g. Jurkat)', den: 3e5, unit: 'ml', show: '2–4 × 10⁵ cells/mL',
+   note: 'ATCC seeding range; keep below 3 × 10⁶/mL. Uses the midpoint.', src: 'https://www.atcc.org/products/tib-152', by: 'ATCC TIB-152'}
+];
+const CALC_STORE = STORE + ':calc';
+const calcDefaults = () => ({vessel: 'plate', area: '', vol: '', den: '3e4', unit: 'cm2', stock: '', wells: '', extra: '10', open: true, lastV: ''});
+let calc = (() => {
+  const d = calcDefaults();
+  try {
+    const s = JSON.parse(localStorage.getItem(CALC_STORE));
+    if (s && typeof s === 'object') for (const k of Object.keys(d)) if (typeof s[k] === typeof d[k]) d[k] = typeof d[k] === 'string' ? clean(s[k], 40) : s[k];
+  } catch {}
+  if (d.vessel !== 'plate' && d.vessel !== 'custom' && !VESSELS[d.vessel]) d.vessel = 'plate';
+  if (!['cm2', 'well', 'ml'].includes(d.unit)) d.unit = 'cm2';
+  return d;
+})();
+function saveCalc() { try { localStorage.setItem(CALC_STORE, JSON.stringify(calc)); } catch {} }
+
+/* Accepts 1.2e6, 1.2 x 10^6, 1.2×10⁶, 1,200,000, 1 200 000, 1.2M, 500k, and a decimal comma (1,5). */
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+function parseNum(v) {
+  let s = String(v ?? '').trim();
+  if (!s) return NaN;
+  s = s.replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, m => '^' + [...m].map(c => c === '⁻' ? '-' : SUP.indexOf(c)).join(''));
+  s = s.replace(/[\s_]/g, '').replace(/[×xX*·]/g, 'x');
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?/.test(s)) s = s.replace(/,/g, ''); else s = s.replace(',', '.');
+  let m = /^10\^([-+]?\d+)$/.exec(s);
+  if (m) return 10 ** +m[1];
+  m = /^(\d*\.?\d+(?:[eE][-+]?\d+)?)(?:x10\^?([-+]?\d+)|(k|K|M))?$/.exec(s);
+  if (!m) return NaN;
+  const n = parseFloat(m[1]) * (m[2] != null ? 10 ** +m[2] : m[3] ? (m[3] === 'M' ? 1e6 : 1e3) : 1);
+  return isFinite(n) && n >= 0 ? n : NaN;
+}
+const sup = n => String(n).replace('-', '⁻').replace(/\d/g, d => SUP[d]);
+const trim0 = s => s.includes('.') ? s.replace(/\.?0+$/, '') : s;
+function fmtN(n) {
+  if (!isFinite(n)) return '–';
+  if (n === 0) return '0';
+  if (n < 100) return trim0(n.toPrecision(3));
+  if (n < 1e4) return Math.round(n).toLocaleString('en-US');
+  let e = Math.floor(Math.log10(n)), m = +(n / 10 ** e).toPrecision(3);
+  if (m >= 10) { m /= 10; e++; }
+  return `${trim0(m.toFixed(2))} × 10${sup(e)}`;
+}
+function fmtV(ml) {
+  if (!isFinite(ml)) return '–';
+  if (ml < 1) { const u = ml * 1000; return trim0(u.toFixed(u < 10 ? 2 : u < 100 ? 1 : 0)) + ' µL'; }
+  return trim0(ml.toFixed(ml < 10 ? 2 : ml < 100 ? 1 : 0)) + ' mL';
+}
+
+const vesselKey = () => calc.vessel === 'plate' ? 'p' + state.plate : calc.vessel;
+const curVessel = () => VESSELS[vesselKey()] || null;          // null = custom size
+const isWellVessel = () => { const v = curVessel(); return !v || !!v.plate; };
+function autoWells() {
+  if (calc.vessel === 'plate') return sel.size ? {n: sel.size, why: `${sel.size} selected well${sel.size > 1 ? 's' : ''} on the plate map`} : {n: state.plate, why: `the whole ${state.plate}-well plate (select wells to use just those)`};
+  const v = curVessel();
+  if (v && v.plate) return {n: v.plate, why: `a whole ${v.name}`};
+  if (v) return {n: 1, why: `one ${v.name}`};
+  return {n: 1, why: 'one well or vessel'};
+}
+function fillVessel() {
+  const v = curVessel();
+  if (v) { calc.area = String(v.area); calc.vol = String(v.vol); }
+  calc.lastV = vesselKey();
+}
+
+function calcResult() {
+  const area = parseNum(calc.area), vol = parseNum(calc.vol), den = parseNum(calc.den), stock = parseNum(calc.stock);
+  const extra = calc.extra.trim() === '' ? 0 : parseNum(calc.extra);
+  const wells = calc.wells.trim() === '' ? autoWells().n : parseNum(calc.wells);
+  const missing = [];
+  if (!(vol > 0)) missing.push('medium per well');
+  if (calc.unit === 'cm2' && !(area > 0)) missing.push('area per well');
+  if (!(den > 0)) missing.push('target density');
+  if (!(wells >= 1) || wells !== Math.floor(wells)) missing.push('wells to seed (a whole number)');
+  if (!(extra >= 0)) missing.push('extra volume');
+  if (missing.length) return {missing};
+  const perWell = calc.unit === 'cm2' ? den * area : calc.unit === 'well' ? den : den * vol;
+  const conc = perWell / vol;                                   // cells/mL the suspension must have
+  const total = wells * vol * (1 + extra / 100);                 // mL of suspension to make
+  const cells = total * conc;
+  const r = {perWell, perCm2: area > 0 ? perWell / area : NaN, conc, wells, extra, vol, area, total, cells};
+  if (stock > 0) {
+    r.stock = stock;
+    r.stockVol = cells / stock;
+    r.medium = total - r.stockVol;
+    r.tooDilute = r.stockVol > total * (1 + 1e-9);
+  }
+  return r;
+}
+function calcSummary(r) {
+  const unit = isWellVessel() ? 'well' : 'vessel';
+  let s = `Seeding: ${fmtN(r.perWell)} cells/${unit}` + (isFinite(r.perCm2) ? ` (${fmtN(r.perCm2)} cells/cm²)` : '') +
+    ` in ${fmtV(r.vol)}, from a ${fmtN(r.conc)} cells/mL suspension; ${r.wells} ${unit}${r.wells > 1 ? 's' : ''}, ${fmtV(r.total)} made (+${trim0(String(r.extra))}%).`;
+  if (r.stock && !r.tooDilute) s += ` Mix ${fmtV(r.stockVol)} of ${fmtN(r.stock)} cells/mL stock + ${fmtV(r.medium)} medium.`;
+  if (r.stock && r.tooDilute) s += ` Pellet ${fmtV(r.stockVol)} of ${fmtN(r.stock)} cells/mL stock, resuspend in ${fmtV(r.total)}.`;
+  return s;
+}
+
+function renderCalcForm() {
+  const plateOpt = `<option value="plate">This plate (${state.plate}-well)</option>`;
+  const grp = (label, pre) => `<optgroup label="${label}">` + Object.entries(VESSELS).filter(([k]) => k[0] === pre)
+    .map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('') + '</optgroup>';
+  $('#cVessel').innerHTML = plateOpt + grp('Plates', 'p') + grp('Dishes', 'd') + grp('Flasks', 't') + '<option value="custom">Custom size</option>';
+  $('#cVessel').value = calc.vessel;
+  for (const [id, k] of [['#cArea', 'area'], ['#cVol', 'vol'], ['#cDen', 'den'], ['#cStock', 'stock'], ['#cExtra', 'extra']])
+    if ($(id).value !== calc[k]) $(id).value = calc[k];
+  $('#cUnit').value = calc.unit;
+  const wellWord = isWellVessel() ? 'well' : 'vessel';
+  $('#cUnit').options[1].textContent = `cells/${wellWord}`;
+  $('label[for=cArea]').textContent = `Area per ${wellWord} (cm²)`;
+  $('label[for=cVol]').textContent = `Medium per ${wellWord} (mL)`;
+  $('label[for=cWells]').textContent = isWellVessel() ? 'Wells to seed' : 'Vessels to seed';
+  const v = curVessel();
+  $('#cSrc').innerHTML = v
+    ? `${esc(v.name)}: ${v.area} cm², medium ${v.range} (<a href="${THERMO}" target="_blank" rel="noopener">Thermo Fisher</a>). Brands differ slightly; check yours.`
+    : 'Custom size: enter the growth area and medium volume.';
+  const a = autoWells();
+  $('#cWells').placeholder = String(a.n);
+  if ($('#cWells').value !== calc.wells) $('#cWells').value = calc.wells;
+  $('#cWellsSrc').innerHTML = calc.wells.trim() === ''
+    ? `Using ${esc(a.why)}.`
+    : `Typed by you. <button class="btn link" id="cWellsAuto">Use ${esc(a.why.replace(/ \(.*\)$/, ''))} (${a.n})</button>`;
+}
+function renderCalcOut() {
+  const r = calcResult(), out = $('#cOut');
+  if (r.missing) { out.innerHTML = `<h3>Results</h3><p class="hint">Enter ${esc(r.missing.join(', '))} to see the numbers.</p>`; return; }
+  const unit = isWellVessel() ? 'well' : 'vessel', units = r.wells > 1 ? unit + 's' : unit;
+  let h = `<h3>Per ${unit}</h3><dl>
+    <dt>Cells</dt><dd><b id="cPerWell">${fmtN(r.perWell)}</b></dd>
+    <dt>Density</dt><dd>${isFinite(r.perCm2) ? fmtN(r.perCm2) + ' cells/cm²' : '<span class="muted">needs area</span>'}</dd>
+    <dt>Volume</dt><dd>${fmtV(r.vol)}</dd>
+    <dt>Concentration</dt><dd>${fmtN(r.conc)} cells/mL</dd></dl>
+    <h3 class="mix">For ${r.wells} ${units} + ${trim0(String(r.extra))}% extra</h3><dl>
+    <dt>Suspension to make</dt><dd><b id="cTotal">${fmtV(r.total)}</b></dd>
+    <dt>Cells needed</dt><dd>${fmtN(r.cells)}</dd>`;
+  if (r.stock && !r.tooDilute) {
+    h += `<dt>Your cell stock</dt><dd><b id="cStockVol">${fmtV(r.stockVol)}</b></dd>
+      <dt>+ Medium</dt><dd><b id="cMedium">${fmtV(r.medium)}</b></dd></dl>
+      <p class="hint" style="font-size:12px">Mix, then add ${fmtV(r.vol)} to each ${unit}. That is a 1:${fmtN(r.stock / r.conc)} dilution of your stock.</p>`;
+    if (r.stockVol < 0.002) h += `<p class="warn">Only ${fmtV(r.stockVol)} of stock is needed, which is hard to pipette accurately. Make an intermediate dilution first, or prepare more suspension.</p>`;
+  } else if (r.stock) {
+    h += `</dl><p class="warn" id="cDilute"><b>Your stock is too dilute.</b> It has ${fmtN(r.stock)} cells/mL but the suspension needs ${fmtN(r.conc)} cells/mL. Spin down ${fmtV(r.stockVol)} of stock and resuspend the pellet in ${fmtV(r.total)} of medium, or lower the medium volume per ${unit}.</p>`;
+  } else {
+    h += `</dl><p class="hint" style="font-size:12px">Enter your counted cells/mL to get stock and medium volumes.</p>`;
+  }
+  h += `<div class="acts"><button class="btn" id="cNotes" title="Append this to the plate notes so it appears on the exported map">Add to notes</button></div>`;
+  out.innerHTML = h;
+}
+function renderRecs() {
+  $('#cRecs').innerHTML = RECS.map((x, i) => `<button class="rec" data-rec="${i}"><b>${esc(x.name)}</b><span>${esc(x.show)}. ${esc(x.note)}</span></button>
+    <div class="src" style="margin:-3px 0 8px">Source: <a href="${x.src}" target="_blank" rel="noopener">${esc(x.by)}</a></div>`).join('');
+}
+function calcSync() {
+  // The "this plate" vessel follows the plate size: refill area and volume when the plate changes.
+  if (calc.vessel === 'plate' && calc.lastV !== vesselKey()) fillVessel();
+  renderCalcForm(); renderCalcOut(); saveCalc();
+}
+function setCalcOpen(open) {
+  calc.open = open;
+  document.body.classList.toggle('nocalc', !open);
+  $('#calcBtn').setAttribute('aria-pressed', String(open));
+  saveCalc();
+}
+
+$('#calc').addEventListener('input', e => {
+  const map = {cArea: 'area', cVol: 'vol', cDen: 'den', cStock: 'stock', cWells: 'wells', cExtra: 'extra'};
+  const k = map[e.target.id]; if (!k) return;
+  calc[k] = clean(e.target.value, 40);
+  // A typed area no longer matches the chosen vessel, so call it a custom size.
+  if (k === 'area' && calc.vessel !== 'custom' && curVessel() && parseNum(calc.area) !== curVessel().area) { calc.vessel = 'custom'; calc.lastV = 'custom'; }
+  calcSync();
+});
+$('#calc').addEventListener('change', e => {
+  if (e.target.id === 'cVessel') { calc.vessel = e.target.value; fillVessel(); calc.wells = ''; calcSync(); }
+  if (e.target.id === 'cUnit') {
+    // Keep the same seeding when the unit changes: convert the number rather than reinterpret it.
+    const r = calcResult(), to = e.target.value;
+    if (!r.missing) {
+      const v = to === 'cm2' ? r.perCm2 : to === 'well' ? r.perWell : r.conc;
+      if (isFinite(v)) calc.den = trim0(+v.toPrecision(3) + '');
+    }
+    calc.unit = to; calcSync();
+  }
+});
+$('#calc').addEventListener('click', e => {
+  const rec = e.target.closest('[data-rec]');
+  if (rec) { const x = RECS[+rec.dataset.rec]; calc.den = String(x.den); calc.unit = x.unit; calcSync(); toast(`Using ${x.show.replace(/^≈ /, '')}. Adjust for your cells.`); return; }
+  if (e.target.id === 'cWellsAuto') { calc.wells = ''; calcSync(); return; }
+  if (e.target.id === 'calcReset') { const open = calc.open; calc = calcDefaults(); calc.open = open; calcSync(); return; }
+  if (e.target.id === 'cNotes') {
+    const r = calcResult(); if (r.missing) return;
+    const line = calcSummary(r), cur = state.notes.replace(/\s+$/, '');
+    const next = cur ? cur + '\n' + line : line;
+    if (Array.from(next).length > LIM.notes) return toast('Notes are full. Shorten them first.');
+    snapshot(); state.notes = clean(next, LIM.notes, true); syncInputs(); renderPlate(); persist(); commit();
+    toast('Added to notes. It will show on the exported map.');
+  }
+});
+$('#calcBtn').addEventListener('click', () => { setCalcOpen(!calc.open); if (calc.open) $('#calc').scrollIntoView({block: 'nearest'}); });
+
 /* Read-only hooks for the test page and for anyone scripting the tool. */
 window.plateMap = Object.freeze({
   state: () => JSON.parse(JSON.stringify(state)),
   selection: () => sortedSel('row'),
   open: text => openText(text),
   svg: () => svgFile(), csv: () => csvFile(), json: () => jsonFile(),
-  fileName: () => baseName(), png: () => pngBlob(), normalize: d => normalize(d)
+  fileName: () => baseName(), png: () => pngBlob(), normalize: d => normalize(d),
+  calc: () => calcResult(), calcInputs: () => ({...calc}), parseNum: v => parseNum(v), calcSummary: () => { const r = calcResult(); return r.missing ? '' : calcSummary(r); }
 });
 
 renderLead();
+renderRecs();
+setCalcOpen(calc.open);
 renderAll();
 })();
 </script>

@@ -19,7 +19,7 @@ pre{white-space:pre-wrap}
 'use strict';
 const STORE = 'plateMap.v1:test';   // the app is loaded with ?store=test, so a real autosave is never touched
 const REAL = 'plateMap.v1';
-const realBefore = localStorage.getItem(REAL);
+const realBefore = localStorage.getItem(REAL), realCalcBefore = localStorage.getItem(REAL + ':calc');
 const out = document.getElementById('out'), frame = document.getElementById('app');
 const tests = [];
 const test = (name, fn) => tests.push({name, fn});
@@ -33,7 +33,7 @@ function eq(a, b, msg) {
 }
 
 async function boot(stored) {
-  localStorage.removeItem(STORE);
+  localStorage.removeItem(STORE); localStorage.removeItem(STORE + ':calc');
   if (stored !== undefined) localStorage.setItem(STORE, typeof stored === 'string' ? stored : JSON.stringify(stored));
   await new Promise(res => { frame.onload = res; frame.src = '../index.html?store=test&t=' + Math.random(); });
   W = frame.contentWindow; D = W.document; PM = W.plateMap;
@@ -439,8 +439,106 @@ test('CSV formula guard also covers labels with leading whitespace', async () =>
   const rows = PM.csv().replace(/^﻿/, '').split('\r\n');
   eq(rows[1], "A1,A,1,,'=1+1,"); eq(rows[2], "A2,A,2,,'@x,"); eq(rows[3], 'A3,A,3,,-3,');
 });
+/* ---------------- seeding calculator ---------------- */
+const near = (a, b, msg) => assert(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), `${msg || 'not close'}: got ${a}, expected ${b}`);
+function pick(sel, v) { const el = $(sel); el.value = v; el.dispatchEvent(new W.Event('change', {bubbles: true})); }
+function fill(sel, v) { const el = $(sel); el.value = v; el.dispatchEvent(new W.Event('input', {bubbles: true})); }
+test('calculator: area and volume follow the plate size; wells follow the selection', async () => {
+  await boot();
+  eq([$('#cArea').value, $('#cVol').value, $('#cWells').placeholder], ['0.32', '0.1', '96']);
+  $('[data-p="6"]').click();
+  eq([$('#cArea').value, $('#cVol').value, $('#cWells').placeholder], ['9.6', '2', '6']);
+  assert($('#cVessel').selectedOptions[0].textContent.includes('6-well'), 'vessel label follows plate');
+  clickWell('A1'); clickWell('B3', {shiftKey: true});
+  eq(PM.calc().wells, 2); assert($('#cWellsSrc').textContent.includes('2 selected wells'));
+  $('#undoBtn').click(); eq($('#cArea').value, '0.32', 'undoing the plate change refills the 96-well values');
+});
+test('calculator: cells/cm² to stock and medium volumes', async () => {
+  await boot();
+  fill('#cDen', '3e4'); fill('#cStock', '1.2 x 10^6');
+  const r = PM.calc();
+  near(r.perWell, 9600); near(r.conc, 96000); near(r.total, 96 * 0.1 * 1.1); near(r.cells, 10.56 * 96000);
+  near(r.stockVol, 10.56 * 96000 / 1.2e6); near(r.medium, 10.56 - 10.56 * 96000 / 1.2e6);
+  eq($('#cStockVol').textContent, '845 µL'); eq($('#cMedium').textContent, '9.72 mL'); eq($('#cTotal').textContent, '10.6 mL');
+});
+test('calculator: cells/well and cells/mL targets, and unit switch keeps the same seeding', async () => {
+  await boot();
+  fill('#cDen', '3e4');
+  pick('#cUnit', 'well'); eq($('#cDen').value, '9600'); near(PM.calc().perWell, 9600);
+  pick('#cUnit', 'ml'); eq($('#cDen').value, '96000'); near(PM.calc().perWell, 9600);
+  fill('#cDen', '2e5'); near(PM.calc().perWell, 2e4); near(PM.calc().perCm2, 2e4 / 0.32);
+  fill('#cArea', ''); assert(!PM.calc().missing, 'cells/mL needs no area'); assert(!isFinite(PM.calc().perCm2));
+});
+test('calculator: number parsing accepts lab notations and rejects junk', async () => {
+  await boot();
+  const ok = {'1.2e6': 1.2e6, '1.2 x 10^6': 1.2e6, '1.2×10⁶': 1.2e6, '1,200,000': 1.2e6, '1 200 000': 1.2e6, '1.2M': 1.2e6, '500k': 5e5, '10^5': 1e5, '0,5': 0.5, '2.5E-1': 0.25, '3X10^4': 3e4, '5×10⁻²': 0.05};
+  for (const [s, v] of Object.entries(ok)) near(PM.parseNum(s), v, s);
+  for (const s of ['', 'abc', '-5', '1e', '1..2', '1x10', 'Infinity', '1e999']) assert(Number.isNaN(PM.parseNum(s)), 'should reject ' + JSON.stringify(s));
+});
+test('calculator: too-dilute stock gives pellet-and-resuspend instructions', async () => {
+  await boot();
+  fill('#cDen', '3e4'); fill('#cStock', '5e4');
+  assert(PM.calc().tooDilute); assert($('#cDilute'), 'warning shown'); assert(!$('#cStockVol'), 'no mix volumes');
+  assert($('#cDilute').textContent.includes('10.6 mL'), 'resuspend volume');
+});
+test('calculator: missing or bad inputs explain themselves, never NaN', async () => {
+  await boot();
+  fill('#cDen', 'lots'); fill('#cWells', '2.5');
+  eq(PM.calc().missing.length, 2); assert(!$('#cOut').textContent.includes('NaN'));
+  assert($('#cOut').textContent.includes('target density'));
+});
+test('calculator: recommendations fill density and unit', async () => {
+  await boot();
+  $$('[data-rec]')[3].click();
+  eq([$('#cDen').value, $('#cUnit').value], ['300000', 'ml']); near(PM.calc().perWell, 3e4);
+  $$('[data-rec]')[1].click();
+  eq([$('#cDen').value, $('#cUnit').value], ['5000', 'cm2']); near(PM.calc().perWell, 1600);
+  eq($$('.recs a[href^="https://"]').length, 4, 'each recommendation has a source link');
+  assert(/depends on the cell type/i.test($('.recs .caveat').textContent), 'caveat shown');
+});
+test('calculator: flasks, typed wells and custom size', async () => {
+  await boot();
+  pick('#cVessel', 't75');
+  eq([$('#cArea').value, $('#cVol').value], ['75', '15']); eq(PM.calc().wells, 1);
+  eq($('#cUnit').options[1].textContent, 'cells/vessel');
+  fill('#cWells', '3'); eq(PM.calc().wells, 3); $('#cWellsAuto').click(); eq(PM.calc().wells, 1);
+  fill('#cArea', '80'); eq($('#cVessel').value, 'custom', 'typed area makes it custom');
+  $('[data-p="24"]').click(); eq($('#cArea').value, '80', 'custom size ignores plate changes');
+  pick('#cVessel', 'plate'); eq([$('#cArea').value, $('#cVol').value], ['1.9', '0.5']);
+});
+test('calculator: Add to notes appends a summary that reaches the export and undoes in one step', async () => {
+  await boot();
+  type($('#notes'), 'HeLa p12');
+  fill('#cDen', '3e4'); fill('#cStock', '1.2e6');
+  $('#cNotes').click();
+  const n = st().notes;
+  assert(n.startsWith('HeLa p12\nSeeding: 9,600 cells/well'), n);
+  assert(n.includes('845 µL'), n); eq($('#notes').value, n, 'textarea updated');
+  assert(PM.svg().includes('Seeding: 9,600 cells/well'), 'in svg');
+  $('#undoBtn').click(); eq(st().notes, 'HeLa p12');
+});
+test('calculator: inputs persist across reloads; panel can be hidden', async () => {
+  await boot();
+  fill('#cStock', '7.5e5'); pick('#cVessel', 'd60');
+  $('#calcBtn').click(); assert(D.body.classList.contains('nocalc')); eq(W.getComputedStyle($('#calc')).display, 'none');
+  const saved = localStorage.getItem(STORE + ':calc');
+  localStorage.setItem(STORE + ':calc', saved);
+  await new Promise(res => { frame.onload = res; frame.src = '../index.html?store=test&t=' + Math.random(); });
+  W = frame.contentWindow; D = W.document; PM = W.plateMap;
+  eq([$('#cStock').value, $('#cVessel').value, $('#cArea').value], ['7.5e5', 'd60', '21.5']);
+  assert(D.body.classList.contains('nocalc'), 'hidden state kept');
+  $('#calcBtn').click(); assert(!D.body.classList.contains('nocalc'));
+});
+test('calculator: corrupt saved calculator state falls back to defaults', async () => {
+  await boot();
+  localStorage.setItem(STORE + ':calc', '{"vessel":"<img>","unit":5,"den":{"x":1}}');
+  await new Promise(res => { frame.onload = res; frame.src = '../index.html?store=test&t=' + Math.random(); });
+  W = frame.contentWindow; D = W.document; PM = W.plateMap;
+  eq([$('#cVessel').value, $('#cUnit').value, $('#cDen').value], ['plate', 'cm2', '3e4']);
+});
 test('the test page never touches the real autosave', async () => {
   eq(localStorage.getItem(REAL), realBefore);
+  eq(localStorage.getItem(REAL + ':calc'), realCalcBefore);
 });
 
 /* ---------------- runner ---------------- */
@@ -454,7 +552,7 @@ test('the test page never touches the real autosave', async () => {
   const summary = `${pass === tests.length ? 'PASS' : 'FAIL'} ${pass}/${tests.length}`;
   out.innerHTML = `<b>${summary}</b>\n\n` + lines.join('\n');
   document.title = summary;
-  localStorage.removeItem(STORE);
+  localStorage.removeItem(STORE); localStorage.removeItem(STORE + ':calc');
 })();
 </script>
 </body>
