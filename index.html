@@ -130,6 +130,18 @@ body.nocalc aside.calc{display:none}
   header h1{flex-basis:100%}
   header .btn{padding:6px 9px}
 }
+@media (pointer:coarse){
+  /* Finger-sized targets for the small controls (at least 36px). */
+  .grp{grid-template-columns:36px 1fr auto 36px}
+  .sw{width:36px;height:36px}
+  .grp .x{min-height:36px;font-size:20px}
+  .btn.link{min-height:36px;padding:8px 2px}
+  .calc h2 .btn{padding:8px 6px}
+  .src a{display:inline-block;padding:8px 0}
+  .chip{min-height:36px}
+  .check input[type=checkbox]{width:22px;height:22px}
+  .check select{min-height:36px}
+}
 @media print{
   @page{size:landscape;margin:12mm}
   header,main,.toast{display:none!important}
@@ -183,7 +195,7 @@ body.nocalc aside.calc{display:none}
 
 <div class="stage">
   <p class="lead" id="lead"></p>
-  <div id="plate" tabindex="0" aria-label="Plate. Arrow keys move, Shift+arrows extend the selection." aria-describedby="lead"></div>
+  <div id="plate" tabindex="0" role="application" aria-roledescription="plate map" aria-label="Plate" aria-describedby="lead"></div>
   <div class="bar" id="selBar"></div>
   <div class="sr" id="live" aria-live="polite"></div>
 </div>
@@ -312,6 +324,7 @@ let state = load() || fresh();
 let sel = new Set(), drag = null, hist = [], fut = [], committed = '';
 let anchor = null, cursor = null, lastPtr = 'mouse';
 let numOn = false, numOrder = 'row';
+let lblDraft = null;   // label typed but not yet applied; survives selection changes
 
 /* ---------- history ---------- */
 /* Undo model:
@@ -466,7 +479,20 @@ function buildSVG(forExport) {
 
 /* ---------- rendering ---------- */
 const plate = $('#plate');
-function renderPlate() { plate.innerHTML = buildSVG(false).svg; paintSel(); }
+function renderPlate() {
+  plate.innerHTML = buildSVG(false).svg;   // the drawing is aria-hidden; screen readers get the live region instead
+  plate.setAttribute('aria-label', `${state.plate}-well plate. Arrow keys move between wells, Shift+arrows extend the selection, 1 to 9 assign a group, 0 removes it, Delete clears the wells.`);
+  paintSel();
+}
+/* Spoken description of one well, e.g. "B3, Control, label 10 µM" or "B3, empty". */
+function describeWell(id) {
+  const w = state.wells[id] || {}, g = w.g && state.groups.find(x => x.id === w.g);
+  const parts = [id];
+  if (g) parts.push(g.name.trim() || 'Untitled group');
+  if (w.t) parts.push('label ' + w.t);
+  if (!g && !w.t) parts.push('empty');
+  return parts.join(', ');
+}
 function paintSel() { plate.querySelectorAll('.w').forEach(g => { g.classList.toggle('sel', sel.has(g.dataset.w)); g.classList.toggle('cur', g.dataset.w === cursor); }); }
 
 function renderSeg() {
@@ -494,7 +520,9 @@ function renderLead() {
 }
 function renderBar() {
   const bar = $('#selBar');
-  $('#live').textContent = sel.size ? `${sel.size} well${sel.size > 1 ? 's' : ''} selected` : 'No wells selected';
+  const count = sel.size ? `${sel.size} well${sel.size > 1 ? 's' : ''} selected` : 'No wells selected';
+  // When the plate has keyboard focus, say which well the cursor is on and what it holds, not just the count.
+  $('#live').textContent = cursor && document.activeElement === plate ? `${describeWell(cursor)}. ${count}` : count;
   if (!sel.size) {
     bar.innerHTML = TOUCH
       ? `<p class="hint">Nothing selected. Tap wells to select them, or tap a row letter or column number for the whole line.</p>`
@@ -514,7 +542,7 @@ function renderBar() {
       <button class="chip ${ws.every(w => !w.g) ? 'on' : ''}" data-g=""><i style="background:#fff"></i><span>No group</span> <kbd>0</kbd></button>
     </div>
     <div class="lblrow">
-      <input type="text" id="lblIn" maxlength="${LIM.label}" placeholder="Label, e.g. 10 µM or Donor 2" value="${esc(common)}" aria-label="Label for selected wells">
+      <input type="text" id="lblIn" maxlength="${LIM.label}" placeholder="Label, e.g. 10 µM or Donor 2" value="${esc(lblDraft ?? common)}" aria-label="Label for selected wells">
       <button class="btn primary" id="lblApply">Apply label</button>
       <label class="check"><input type="checkbox" id="lblNum" ${numOn ? 'checked' : ''}> add 1, 2, 3…
         <select id="lblOrder" aria-label="Numbering order"><option value="row" ${numOrder === 'row' ? 'selected' : ''}>across rows</option><option value="col" ${numOrder === 'col' ? 'selected' : ''}>down columns</option></select></label>
@@ -549,6 +577,7 @@ function applyLabel() {
     if (t) w.t = t; else delete w.t;
     setWell(id, w);
   });
+  lblDraft = null;
   changed();
 }
 function clearSel() { if (!sel.size) return; snapshot(); for (const id of sel) delete state.wells[id]; changed(); }
@@ -601,7 +630,7 @@ function selectLine(t, add) {
   selChanged();
 }
 function selChanged() { paintSel(); renderBar(); calcSync(); }
-function clearSelection() { if (drag) return; sel.clear(); anchor = cursor = null; selChanged(); }
+function clearSelection() { if (drag) return; sel.clear(); anchor = cursor = null; lblDraft = null; selChanged(); }
 function dragTo(id) {
   if (id !== drag.id) drag.moved = true;
   cursor = id;
@@ -611,6 +640,7 @@ function dragTo(id) {
 }
 const target = e => e.target.closest && e.target.closest('[data-w],[data-r],[data-c],[data-all]');
 
+plate.addEventListener('focus', () => { if (cursor) renderBar(); });
 plate.addEventListener('pointerdown', e => {
   if (drag) return;                                            // ignore a second finger or pen mid-drag
   lastPtr = e.pointerType || 'mouse';
@@ -691,6 +721,7 @@ $('#selBar').addEventListener('change', e => {
   if (e.target.id === 'lblNum') numOn = e.target.checked;
   if (e.target.id === 'lblOrder') numOrder = e.target.value;
 });
+$('#selBar').addEventListener('input', e => { if (e.target.id === 'lblIn') lblDraft = e.target.value; });
 $('#selBar').addEventListener('keydown', e => { if (e.target.id === 'lblIn' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); applyLabel(); } });
 
 const ARROWS = {ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1]};

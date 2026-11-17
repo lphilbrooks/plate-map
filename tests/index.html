@@ -308,7 +308,9 @@ test('PNG export renders a real image for the biggest and smallest plates', asyn
 test('export buttons trigger downloads with sensible names', async () => {
   await boot();
   type($('#title'), 'Exp');
-  for (const x of ['svg', 'csv', 'json', 'png']) $(`[data-x="${x}"]`).click(), await sleep(x === 'png' ? 400 : 20);
+  for (const x of ['svg', 'csv', 'json', 'png']) $(`[data-x="${x}"]`).click(), await sleep(20);
+  // PNG rendering is async and slow on software-rendered phones, so wait for it rather than a fixed delay.
+  for (let i = 0; i < 100 && W.__downloads.length < 4; i++) await sleep(50);
   eq(W.__downloads.sort(), ['Exp.csv', 'Exp.json', 'Exp.png', 'Exp.svg']);
 });
 
@@ -535,6 +537,32 @@ test('calculator: corrupt saved calculator state falls back to defaults', async 
   await new Promise(res => { frame.onload = res; frame.src = '../index.html?store=test&t=' + Math.random(); });
   W = frame.contentWindow; D = W.document; PM = W.plateMap;
   eq([$('#cVessel').value, $('#cUnit').value, $('#cDen').value], ['plate', 'cm2', '3e4']);
+});
+test('a typed label survives a selection change until applied or Escape', async () => {
+  await boot();
+  clickWell('A1');
+  const inp = $('#lblIn'); inp.value = 'Drug X'; inp.dispatchEvent(new W.Event('input', {bubbles: true}));
+  clickWell('B2'); eq($('#lblIn').value, 'Drug X', 'kept after a plain click');
+  drag('C1', 'C3'); eq($('#lblIn').value, 'Drug X', 'kept after a drag');
+  $('#lblApply').click();
+  eq(['C1', 'C2', 'C3'].map(w => st().wells[w].t), ['Drug X', 'Drug X', 'Drug X']);
+  clickWell('D1'); eq($('#lblIn').value, '', 'after applying, an empty well shows no label');
+  clickWell('C2'); eq($('#lblIn').value, 'Drug X', 'shows the common label again');
+  $('#lblIn').value = 'typo'; $('#lblIn').dispatchEvent(new W.Event('input', {bubbles: true}));
+  key('Escape'); clickWell('D1'); eq($('#lblIn').value, '', 'Escape drops the draft');
+});
+test('screen readers hear the well under the keyboard cursor', async () => {
+  await boot();
+  const plate = $('#plate');
+  eq(plate.getAttribute('role'), 'application');
+  assert(/96-well plate/.test(plate.getAttribute('aria-label')), 'label names the plate size');
+  clickWell('B3'); chip(0).click();
+  $('#lblIn').value = '10 µM'; $('#lblApply').click();
+  plate.focus(); key('ArrowLeft'); key('ArrowRight');
+  eq($('#live').textContent, 'B3, Control, label 10 µM. 1 well selected');
+  key('ArrowDown'); eq($('#live').textContent, 'C3, empty. 1 well selected');
+  $('[data-p="384"]').click();
+  assert(/384-well plate/.test(plate.getAttribute('aria-label')), 'label follows the plate size');
 });
 test('the test page never touches the real autosave', async () => {
   eq(localStorage.getItem(REAL), realBefore);
