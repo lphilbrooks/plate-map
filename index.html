@@ -9,7 +9,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
 header{display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
 header h1{font-size:15px;font-weight:600;margin:0 auto 0 0;letter-spacing:-.01em}
 header h1 span{color:var(--muted);font-weight:400;margin-left:8px;font-size:13px}
@@ -20,7 +20,7 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute
 h2 b{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--ink);color:#fff;font-size:10px;margin-right:6px}
 label.f{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 input[type=text],textarea,select{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:#fff}
-textarea{resize:vertical;min-height:54px;font:inherit}
+textarea{resize:vertical;min-height:54px}
 input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .seg{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .seg button{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 0;cursor:pointer}
@@ -28,6 +28,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .seg button.on{background:var(--ink);color:#fff}
 .btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 11px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:#bdbdbb}
+.btn:disabled{opacity:.45;cursor:default}
 .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .btn.link{border:0;background:none;color:var(--accent);padding:4px 0}
 .btn.danger{color:var(--danger)}
@@ -37,23 +38,26 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .grp .n{font-size:11px;color:var(--muted);min-width:18px;text-align:right}
 .grp .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:17px;line-height:1;padding:2px}
 .grp .x:hover{color:var(--danger)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .stage{padding:22px 28px 40px;max-width:1060px;margin:0 auto;width:100%}
 .lead{color:var(--muted);margin:0 0 12px;font-size:13px}
 .lead b{color:var(--ink);font-weight:600}
-#plate{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;touch-action:none;user-select:none;-webkit-user-select:none}
+#plate{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#plate:focus{outline:none}
+#plate:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #plate svg{display:block;width:100%;height:auto}
 #plate .w{cursor:pointer}
 #plate .w:hover .well{stroke:#444;stroke-width:1.6}
 #plate .w.sel .well{stroke:var(--accent);stroke-width:3.2}
+#plate:focus-visible .w.cur .well{stroke-dasharray:4 3;stroke:#111;stroke-width:2.4}
 #plate .hit-h{cursor:pointer}
 #plate .hit-h:hover{fill:rgba(37,99,235,.08)}
 .bar{position:sticky;bottom:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
-.bar .top{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
-.bar .muted{color:var(--muted);font-size:12px}
+.bar .top{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.bar .muted{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px 4px 6px;cursor:pointer}
-.chip i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px 4px 6px;cursor:pointer;max-width:100%}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.chip i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.15);flex:none}
 .chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .chip kbd{font:11px ui-monospace,monospace;color:var(--muted)}
 .lblrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -66,8 +70,9 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .exp .btn{text-align:left;padding:8px 10px}
 .exp .btn small{display:block;color:var(--muted);font-size:11px}
 .foot{font-size:12px;color:var(--muted);margin-top:8px}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s;font-size:13px;z-index:10}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s;font-size:13px;z-index:10;max-width:calc(100vw - 32px)}
 .toast.show{opacity:1;transform:translateX(-50%)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #print{display:none}
 @media (max-width:860px){
   main{grid-template-columns:1fr}
@@ -89,6 +94,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 <header>
   <h1>Plate Map <span>Lay out a cell culture plate, then export it</span></h1>
   <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+  <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
   <button class="btn" id="openBtn" title="Open a .json plate map saved from this tool">Open</button>
   <button class="btn" id="newBtn">New</button>
   <input type="file" id="fileIn" accept=".json,application/json" hidden>
@@ -98,11 +104,11 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 <aside>
   <section>
     <h2><b>1</b>Plate</h2>
-    <div class="seg" id="plateSeg"></div>
+    <div class="seg" id="plateSeg" role="group" aria-label="Plate size"></div>
     <label class="f" for="title">Title</label>
-    <input type="text" id="title" data-undo placeholder="e.g. MTT viability, HeLa, 48 h">
+    <input type="text" id="title" data-undo maxlength="200" placeholder="e.g. MTT viability, HeLa, 48 h">
     <label class="f" for="notes">Notes <span style="opacity:.7">(date, cell line, seeding density…)</span></label>
-    <textarea id="notes" data-undo placeholder="Optional"></textarea>
+    <textarea id="notes" data-undo maxlength="2000" placeholder="Optional"></textarea>
   </section>
 
   <section>
@@ -126,21 +132,27 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 </aside>
 
 <div class="stage">
-  <p class="lead"><b>3</b>&nbsp; Click or drag across wells to select them, then pick a group or type a label below.</p>
-  <div id="plate"></div>
+  <p class="lead" id="lead"></p>
+  <div id="plate" tabindex="0" aria-label="Plate. Arrow keys move, Shift+arrows extend the selection." aria-describedby="lead"></div>
   <div class="bar" id="selBar"></div>
+  <div class="sr" id="live" aria-live="polite"></div>
 </div>
 </main>
 
 <div id="print"></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 (() => {
+'use strict';
 const PLATES = {6:[2,3],12:[3,4],24:[4,6],48:[6,8],96:[8,12],384:[16,24]};
 const PALETTE = ['#7fb3e0','#f4a259','#8cc084','#e07a7a','#b39ddb','#f2d16b','#7cc6c0','#d9a5c9','#b08d6a','#9aa5b1','#4f7cac','#c44d7a'];
+const LIM = {title: 200, notes: 2000, group: 80, label: 200, groups: 60, fileBytes: 5e6, history: 200};
 const FONT = 'Helvetica, Arial, sans-serif';
-const STORE = 'plateMap.v1';
+// ?store=name keeps a separate autosave (the test page uses this so it never touches a real map).
+const STORE = 'plateMap.v1' + ((new URLSearchParams(location.search).get('store') || '').replace(/[^\w-]/g, '').slice(0, 20).replace(/^(?=.)/, ':'));
+const HEX = /^#[0-9a-f]{6}$/i, ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const TOUCH = matchMedia('(pointer: coarse)').matches;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -148,42 +160,95 @@ const rowName = i => String.fromCharCode(65 + i);
 const wid = (r, c) => rowName(r) + (c + 1);
 const parseW = id => [id.charCodeAt(0) - 65, parseInt(id.slice(1), 10) - 1];
 
-const fresh = () => ({plate: 96, title: '', notes: '', wells: {}, groups: [
-  {id: uid(), name: 'Control', color: PALETTE[0]},
-  {id: uid(), name: 'Treatment', color: PALETTE[1]}]});
-
-function normalize(d) {
-  if (!d || typeof d !== 'object' || !PLATES[d.plate] || !Array.isArray(d.groups) || typeof d.wells !== 'object') return null;
-  const groups = d.groups.filter(g => g && g.id).map(g => ({id: String(g.id), name: String(g.name ?? ''), color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : PALETTE[0]}));
-  const ids = new Set(groups.map(g => g.id)), [R, C] = PLATES[d.plate], wells = {};
-  for (const [k, o] of Object.entries(d.wells || {})) {
-    if (!/^[A-P]\d{1,2}$/.test(k) || !o) continue;
-    const [r, c] = parseW(k); if (r >= R || c >= C) continue;
-    const w = {}; if (o.g && ids.has(String(o.g))) w.g = String(o.g); if (o.t) w.t = String(o.t);
-    if (w.g || w.t) wells[k] = w;
+/* Strip characters that break XML/SVG or spreadsheets, cap length, keep valid UTF-16. */
+// Built from char codes so no editor or encoding step can turn these into literal characters.
+const BAD_CHARS = new RegExp('[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F' + String.fromCharCode(0xFFFE, 0xFFFF) + ']', 'g');
+const REPLACEMENT = String.fromCharCode(0xFFFD);
+function clean(s, max, multiline) {
+  let t = typeof s === 'string' ? s : typeof s === 'number' && isFinite(s) ? String(s) : '';
+  t = multiline ? t.replace(/\r\n?/g, '\n').replace(/\t/g, ' ') : t.replace(/[\r\n\t]+/g, ' ');
+  t = t.replace(BAD_CHARS, '');
+  return Array.from(wellFormed(t)).slice(0, max).join('');
+}
+function wellFormed(s) {
+  if (s.toWellFormed) return s.toWellFormed();
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xFC00) === 0xDC00) { out += s[i] + s[i + 1]; i++; }
+    else out += c >= 0xD800 && c <= 0xDFFF ? REPLACEMENT : s[i];
   }
-  return {plate: +d.plate, title: String(d.title ?? ''), notes: String(d.notes ?? ''), groups, wells};
+  return out;
+}
+
+const fresh = () => ({plate: 96, title: '', notes: '', groups: [
+  {id: uid(), name: 'Control', color: PALETTE[0]},
+  {id: uid(), name: 'Treatment', color: PALETTE[1]}], wells: {}});
+
+/* Validate anything loaded from a file or storage. Returns null if it isn't a plate map. */
+function normalize(d) {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+  const plate = typeof d.plate === 'number' || typeof d.plate === 'string' ? Number(d.plate) : NaN;
+  if (!PLATES[plate] || !Array.isArray(d.groups)) return null;
+  const idMap = new Map(), groups = [];
+  for (const g of d.groups) {
+    if (!g || typeof g !== 'object' || groups.length >= LIM.groups) continue;
+    const old = clean(g.id, 100);
+    const id = ID_RE.test(old) && !groups.some(x => x.id === old) ? old : uid();
+    if (old && !idMap.has(old)) idMap.set(old, id);
+    const color = typeof g.color === 'string' && HEX.test(g.color) ? g.color.toLowerCase() : PALETTE[groups.length % PALETTE.length];
+    groups.push({id, name: clean(g.name, LIM.group), color});
+  }
+  const src = d.wells && typeof d.wells === 'object' && !Array.isArray(d.wells) ? d.wells : {};
+  const [R, C] = PLATES[plate], wells = {};
+  for (const [k, o] of Object.entries(src)) {
+    const m = /^([A-Pa-p])0*(\d{1,2})$/.exec(k);
+    if (!m || !o || typeof o !== 'object') continue;
+    const r = m[1].toUpperCase().charCodeAt(0) - 65, c = Number(m[2]) - 1;
+    if (r >= R || c < 0 || c >= C) continue;
+    const w = {}, gid = idMap.get(clean(o.g, 100)), t = clean(o.t, LIM.label).trim();
+    if (gid) w.g = gid;
+    if (t) w.t = t;
+    if (w.g || w.t) wells[wid(r, c)] = w;
+  }
+  return {plate, title: clean(d.title, LIM.title), notes: clean(d.notes, LIM.notes, true), groups, wells};
 }
 function load() { try { return normalize(JSON.parse(localStorage.getItem(STORE))); } catch { return null; } }
 function persist() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {} }
 
 let state = load() || fresh();
-let sel = new Set(), drag = null, hist = [], pend = null;
+let sel = new Set(), drag = null, hist = [], fut = [], committed = '';
+let anchor = null, cursor = null, lastPtr = 'mouse';
 let numOn = false, numOrder = 'row';
 
 /* ---------- history ---------- */
-function snapshot() { hist.push(JSON.stringify(state)); if (hist.length > 200) hist.shift(); }
-function undo() {
-  if (!hist.length) return toast('Nothing to undo');
-  state = JSON.parse(hist.pop());
+/* Undo model:
+   - `committed` is the state after the last finished step.
+   - Typing (title, notes, group names, colours) changes state live; flushTyping() turns any
+     such change into its own step. It runs on `change` and before every other edit, undo and redo,
+     because Safari doesn't blur a text field when a button is clicked and colour pickers can stay open.
+   - snapshot() marks the start of a discrete edit; commit() records it only if something changed,
+     so no-op edits don't add steps or wipe redo. */
+let pre = null;
+function pushHist(s) { hist.push(s); if (hist.length > LIM.history) hist.shift(); fut = []; }
+function flushTyping() { const now = JSON.stringify(state); if (committed && committed !== now) { pushHist(committed); committed = now; } }
+function snapshot() { flushTyping(); pre = JSON.stringify(state); }
+function commit() {
+  const now = JSON.stringify(state);
+  if (pre !== null && pre !== now) pushHist(pre);
+  pre = null; committed = now;
+}
+function resetPointer() { drag = null; anchor = cursor = null; }
+function restore(json) {
+  state = normalize(JSON.parse(json)) || fresh();
   const [R, C] = PLATES[state.plate];
   sel = new Set([...sel].filter(w => { const [r, c] = parseW(w); return r < R && c < C; }));
+  resetPointer();
   renderAll();
 }
-document.addEventListener('focusin', e => { if (e.target.matches('[data-undo]')) pend = JSON.stringify(state); });
-document.addEventListener('change', e => {
-  if (e.target.matches('[data-undo]') && pend) { if (pend !== JSON.stringify(state)) { hist.push(pend); pend = JSON.stringify(state); } }
-});
+function undo() { flushTyping(); if (!hist.length) return toast('Nothing to undo'); fut.push(JSON.stringify(state)); const f = fut; restore(hist.pop()); fut = f; }
+function redo() { flushTyping(); if (!fut.length) return toast('Nothing to redo'); const s = fut.pop(), f = fut; hist.push(JSON.stringify(state)); restore(s); fut = f; }
+document.addEventListener('change', e => { if (e.target.matches('[data-undo]')) flushTyping(); });
 
 /* ---------- text measuring ---------- */
 const mctx = document.createElement('canvas').getContext('2d');
@@ -199,11 +264,11 @@ function wrap(text, maxW, fs, maxLines, bold) {
   const over = lines.length > maxLines, out = lines.slice(0, maxLines);
   let cut = over;
   const res = out.map((l, i) => {
-    let s = l;
-    if (measure(s, fs, bold) <= maxW && !(over && i === out.length - 1)) return s;
+    let s = Array.from(l);
+    if (measure(l, fs, bold) <= maxW && !(over && i === out.length - 1)) return l;
     cut = true;
-    while (s.length > 1 && measure(s + '…', fs, bold) > maxW) s = s.slice(0, -1);
-    return s.trimEnd() + '…';
+    while (s.length > 1 && measure(s.join('') + '…', fs, bold) > maxW) s.pop();
+    return s.join('').trimEnd() + '…';
   });
   return {lines: res, cut};
 }
@@ -228,22 +293,19 @@ function buildSVG(forExport) {
   const [R, C] = PLATES[state.plate];
   const pad = 24, hdr = 24, GW = 720, cell = GW / C, GH = cell * R, edge = 12;
   const W = pad * 2 + hdr + GW + edge, inner = W - pad * 2;
-  const gmap = Object.fromEntries(state.groups.map(g => [g.id, g]));
+  const gmap = new Map(state.groups.map(g => [g.id, g]));
   const o = [];
   let y = pad;
 
   if (state.title.trim()) {
-    const t = wrap(state.title, inner, 20, 2, true);
-    t.lines.forEach(l => { y += 22; o.push(`<text x="${pad}" y="${y}" font-size="20" font-weight="bold" fill="#1b1b1b">${esc(l)}</text>`); });
+    wrap(state.title, inner, 20, 2, true).lines.forEach(l => { y += 22; o.push(`<text x="${pad}" y="${y}" font-size="20" font-weight="bold" fill="#1b1b1b">${esc(l)}</text>`); });
     y += 6;
   }
   if (state.notes.trim()) {
-    const parts = state.notes.split(/\n/);
     let n = 0;
-    for (const p of parts) {
+    for (const p of state.notes.trim().split('\n')) {
       if (n >= 6) break;
-      const t = wrap(p || ' ', inner, 12.5, 6 - n);
-      t.lines.forEach(l => { y += 17; n++; o.push(`<text x="${pad}" y="${y}" font-size="12.5" fill="#555">${esc(l)}</text>`); });
+      wrap(p || ' ', inner, 12.5, 6 - n).lines.forEach(l => { y += 17; n++; o.push(`<text x="${pad}" y="${y}" font-size="12.5" fill="#555">${esc(l)}</text>`); });
     }
     y += 4;
   }
@@ -256,14 +318,12 @@ function buildSVG(forExport) {
   const hf = Math.max(8, Math.min(13, cell * .36));
   if (!forExport) o.push(`<rect class="hit-h" data-all="1" x="${pad}" y="${top}" width="${hdr}" height="${hdr}" rx="10" fill="transparent" pointer-events="all"><title>Select all wells</title></rect>`);
   for (let c = 0; c < C; c++) {
-    const cx = gx + c * cell + cell / 2;
-    if (!forExport) o.push(`<rect class="hit-h" data-c="${c}" x="${gx + c * cell}" y="${top}" width="${cell}" height="${hdr}" fill="transparent" pointer-events="all"/>`);
-    o.push(`<text x="${cx}" y="${top + hdr / 2 + hf * .36}" font-size="${hf}" text-anchor="middle" fill="#777" pointer-events="none">${c + 1}</text>`);
+    if (!forExport) o.push(`<rect class="hit-h" data-c="${c}" x="${gx + c * cell}" y="${top}" width="${cell}" height="${hdr}" fill="transparent" pointer-events="all"><title>Column ${c + 1}</title></rect>`);
+    o.push(`<text x="${gx + c * cell + cell / 2}" y="${top + hdr / 2 + hf * .36}" font-size="${hf}" text-anchor="middle" fill="#777" pointer-events="none">${c + 1}</text>`);
   }
   for (let r = 0; r < R; r++) {
-    const cy = gy + r * cell + cell / 2;
-    if (!forExport) o.push(`<rect class="hit-h" data-r="${r}" x="${pad}" y="${gy + r * cell}" width="${hdr}" height="${cell}" fill="transparent" pointer-events="all"/>`);
-    o.push(`<text x="${pad + hdr / 2 + 1}" y="${cy + hf * .36}" font-size="${hf}" text-anchor="middle" fill="#777" pointer-events="none">${rowName(r)}</text>`);
+    if (!forExport) o.push(`<rect class="hit-h" data-r="${r}" x="${pad}" y="${gy + r * cell}" width="${hdr}" height="${cell}" fill="transparent" pointer-events="all"><title>Row ${rowName(r)}</title></rect>`);
+    o.push(`<text x="${pad + hdr / 2 + 1}" y="${gy + r * cell + cell / 2 + hf * .36}" font-size="${hf}" text-anchor="middle" fill="#777" pointer-events="none">${rowName(r)}</text>`);
   }
 
   const square = C >= 24;
@@ -273,7 +333,7 @@ function buildSVG(forExport) {
   const textW = square ? sq * .9 : rad * 2 * .78;
 
   for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
-    const id = wid(r, c), w = state.wells[id] || {}, g = w.g && gmap[w.g];
+    const id = wid(r, c), w = state.wells[id] || {}, g = w.g && gmap.get(w.g);
     const cx = gx + c * cell + cell / 2, cy = gy + r * cell + cell / 2;
     const fill = g ? g.color : '#ffffff', stroke = g ? darker(g.color) : '#b3b3b0';
     o.push(`<g class="w" data-w="${id}">`);
@@ -292,51 +352,61 @@ function buildSVG(forExport) {
   }
 
   y = top + PH;
-  const used = state.groups.filter(g => Object.values(state.wells).some(w => w.g === g.id));
+  const usedIds = new Set(Object.values(state.wells).map(w => w.g).filter(Boolean));
+  const used = state.groups.filter(g => usedIds.has(g.id));
   if (used.length) {
     y += 26;
     let x = pad;
     for (const g of used) {
-      const name = g.name.trim() || 'Untitled', tw = Math.min(measure(name, 12.5), inner - 24);
-      const iw = 14 + 7 + tw + 22;
+      const name = wrap(g.name.trim() || 'Untitled', inner - 24, 12.5, 1).lines[0];
+      const iw = 14 + 7 + measure(name, 12.5) + 22;
       if (x > pad && x + iw - 22 > W - pad) { x = pad; y += 22; }
       o.push(`<circle cx="${x + 7}" cy="${y - 4}" r="7" fill="${g.color}" stroke="${darker(g.color)}" stroke-width="1"/>`);
-      const lbl = wrap(name, inner - 24, 12.5, 1).lines[0];
-      o.push(`<text x="${x + 21}" y="${y}" font-size="12.5" fill="#1b1b1b">${esc(lbl)}</text>`);
+      o.push(`<text x="${x + 21}" y="${y}" font-size="12.5" fill="#1b1b1b">${esc(name)}</text>`);
       x += iw;
     }
   }
   const H = Math.ceil(y + pad);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">` +
-    (forExport ? `<rect width="${W}" height="${H}" fill="#ffffff"/>` : '') + o.join('') + `</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}"${forExport ? '' : ' aria-hidden="true"'}>` +
+    (forExport ? `<title>${esc(state.title.trim() || `${state.plate}-well plate map`)}</title><rect width="${W}" height="${H}" fill="#ffffff"/>` : '') + o.join('') + `</svg>`;
   return {svg, W, H};
 }
 
 /* ---------- rendering ---------- */
-function renderPlate() { $('#plate').innerHTML = buildSVG(false).svg; paintSel(); }
-function paintSel() { document.querySelectorAll('#plate .w').forEach(g => g.classList.toggle('sel', sel.has(g.dataset.w))); }
+const plate = $('#plate');
+function renderPlate() { plate.innerHTML = buildSVG(false).svg; paintSel(); }
+function paintSel() { plate.querySelectorAll('.w').forEach(g => { g.classList.toggle('sel', sel.has(g.dataset.w)); g.classList.toggle('cur', g.dataset.w === cursor); }); }
 
 function renderSeg() {
-  $('#plateSeg').innerHTML = Object.keys(PLATES).map(n => `<button data-p="${n}" class="${+n === state.plate ? 'on' : ''}" title="${n}-well plate (${PLATES[n][0]} × ${PLATES[n][1]})">${n}</button>`).join('');
+  $('#plateSeg').innerHTML = Object.keys(PLATES).map(n => `<button data-p="${n}" class="${+n === state.plate ? 'on' : ''}" aria-pressed="${+n === state.plate}" title="${n}-well plate (${PLATES[n][0]} × ${PLATES[n][1]})">${n}</button>`).join('');
 }
 function renderGroups() {
-  const counts = {};
-  Object.values(state.wells).forEach(w => { if (w.g) counts[w.g] = (counts[w.g] || 0) + 1; });
+  const counts = new Map();
+  Object.values(state.wells).forEach(w => { if (w.g) counts.set(w.g, (counts.get(w.g) || 0) + 1); });
   $('#groups').innerHTML = state.groups.map(g => `
-    <div class="grp" data-id="${g.id}">
-      <label class="sw" style="background:${g.color}" title="Change colour"><input type="color" data-undo value="${g.color}"></label>
-      <input type="text" class="gname" data-undo value="${esc(g.name)}" placeholder="Group name">
-      <span class="n" title="Wells in this group">${counts[g.id] || ''}</span>
-      <button class="x" title="Delete group">×</button>
+    <div class="grp" data-id="${esc(g.id)}">
+      <label class="sw" style="background:${g.color}" title="Change colour"><input type="color" data-undo value="${g.color}" aria-label="Colour for ${esc(g.name)}"></label>
+      <input type="text" class="gname" data-undo maxlength="${LIM.group}" value="${esc(g.name)}" placeholder="Group name" aria-label="Group name">
+      <span class="n" title="Wells in this group">${counts.get(g.id) || ''}</span>
+      <button class="x" title="Delete group" aria-label="Delete group ${esc(g.name)}">×</button>
     </div>`).join('') || '<p class="hint">No groups yet.</p>';
+  $('#addGroup').disabled = state.groups.length >= LIM.groups;
 }
 function sortedSel(order) {
   return [...sel].map(parseW).sort((a, b) => order === 'col' ? (a[1] - b[1] || a[0] - b[0]) : (a[0] - b[0] || a[1] - b[1])).map(([r, c]) => wid(r, c));
 }
+function renderLead() {
+  $('#lead').innerHTML = TOUCH
+    ? '<b>3</b>&nbsp; Tap wells to select them (tap again to deselect), then pick a group or type a label below.'
+    : '<b>3</b>&nbsp; Click or drag across wells to select them, then pick a group or type a label below.';
+}
 function renderBar() {
   const bar = $('#selBar');
+  $('#live').textContent = sel.size ? `${sel.size} well${sel.size > 1 ? 's' : ''} selected` : 'No wells selected';
   if (!sel.size) {
-    bar.innerHTML = `<p class="hint">Nothing selected. Click a well, or drag across several. Click a row letter or column number to take the whole line, or the top-left corner for every well. Hold <kbd>Shift</kbd> or <kbd>Ctrl</kbd> to add to a selection. <kbd>Esc</kbd> clears it.</p>`;
+    bar.innerHTML = TOUCH
+      ? `<p class="hint">Nothing selected. Tap wells to select them, or tap a row letter or column number for the whole line.</p>`
+      : `<p class="hint">Nothing selected. Click a well, or drag across several. Click a row letter or column number to take the whole line, or the top-left corner for every well. Hold <kbd>Shift</kbd> or <kbd>Ctrl</kbd> to add to a selection. <kbd>Esc</kbd> clears it.</p>`;
     return;
   }
   const ids = sortedSel('row');
@@ -348,125 +418,169 @@ function renderBar() {
     <div class="top"><b>${sel.size} well${sel.size > 1 ? 's' : ''} selected</b><span class="muted">${preview}</span>
       <span style="margin-left:auto"><button class="btn link" id="selNone">Deselect</button></span></div>
     <div class="chips">
-      ${state.groups.map((g, i) => `<button class="chip ${ws.every(w => w.g === g.id) ? 'on' : ''}" data-g="${g.id}"><i style="background:${g.color}"></i>${esc(g.name.trim() || 'Untitled')}${i < 9 ? ` <kbd>${i + 1}</kbd>` : ''}</button>`).join('')}
-      <button class="chip ${ws.every(w => !w.g) ? 'on' : ''}" data-g=""><i style="background:#fff"></i>No group <kbd>0</kbd></button>
+      ${state.groups.map((g, i) => `<button class="chip ${ws.every(w => w.g === g.id) ? 'on' : ''}" data-g="${esc(g.id)}" title="${esc(g.name)}"><i style="background:${g.color}"></i><span>${esc(g.name.trim() || 'Untitled')}</span>${i < 9 ? ` <kbd>${i + 1}</kbd>` : ''}</button>`).join('')}
+      <button class="chip ${ws.every(w => !w.g) ? 'on' : ''}" data-g=""><i style="background:#fff"></i><span>No group</span> <kbd>0</kbd></button>
     </div>
     <div class="lblrow">
-      <input type="text" id="lblIn" placeholder="Label, e.g. 10 µM or Donor 2" value="${esc(common)}">
+      <input type="text" id="lblIn" maxlength="${LIM.label}" placeholder="Label, e.g. 10 µM or Donor 2" value="${esc(common)}" aria-label="Label for selected wells">
       <button class="btn primary" id="lblApply">Apply label</button>
       <label class="check"><input type="checkbox" id="lblNum" ${numOn ? 'checked' : ''}> add 1, 2, 3…
-        <select id="lblOrder"><option value="row" ${numOrder === 'row' ? 'selected' : ''}>across rows</option><option value="col" ${numOrder === 'col' ? 'selected' : ''}>down columns</option></select></label>
+        <select id="lblOrder" aria-label="Numbering order"><option value="row" ${numOrder === 'row' ? 'selected' : ''}>across rows</option><option value="col" ${numOrder === 'col' ? 'selected' : ''}>down columns</option></select></label>
       <button class="btn danger" id="clearSel" style="margin-left:auto" title="Delete key">Clear wells</button>
     </div>`;
 }
 function syncInputs() {
-  if (document.activeElement !== $('#title')) $('#title').value = state.title;
-  if (document.activeElement !== $('#notes')) $('#notes').value = state.notes;
+  // Only called after whole-state changes (undo, open, new), so always show the real values.
+  if ($('#title').value !== state.title) $('#title').value = state.title;
+  if ($('#notes').value !== state.notes) $('#notes').value = state.notes;
 }
-function renderAll() { renderSeg(); renderGroups(); renderPlate(); renderBar(); syncInputs(); persist(); }
-function changed() { renderGroups(); renderPlate(); renderBar(); persist(); }
+function renderAll() { renderSeg(); renderGroups(); renderPlate(); renderBar(); syncInputs(); persist(); commit(); }
+function changed() { renderGroups(); renderPlate(); renderBar(); persist(); commit(); }
 
 /* ---------- edits ---------- */
 function setWell(id, w) { if (!w.g && !w.t) delete state.wells[id]; else state.wells[id] = w; }
 function assign(gid) {
   if (!sel.size) return;
+  if (gid && !state.groups.some(g => g.id === gid)) return;
   snapshot();
   for (const id of sel) { const w = {...(state.wells[id] || {})}; if (gid) w.g = gid; else delete w.g; setWell(id, w); }
   changed();
 }
 function applyLabel() {
   if (!sel.size) return;
-  const base = $('#lblIn').value.trim();
+  const base = clean($('#lblIn').value, LIM.label).trim();
   snapshot();
   sortedSel(numOn ? numOrder : 'row').forEach((id, i) => {
     const w = {...(state.wells[id] || {})};
-    const t = numOn ? (base ? `${base} ${i + 1}` : String(i + 1)) : base;
+    const n = String(i + 1), room = LIM.label - n.length - 1;   // keep the number inside the length cap
+    const t = numOn ? (base ? `${Array.from(base).slice(0, room).join('').trimEnd()} ${n}` : n) : base;
     if (t) w.t = t; else delete w.t;
     setWell(id, w);
   });
   changed();
 }
-function clearSel() {
-  if (!sel.size) return;
-  snapshot(); for (const id of sel) delete state.wells[id]; changed();
-}
+function clearSel() { if (!sel.size) return; snapshot(); for (const id of sel) delete state.wells[id]; changed(); }
 function setPlate(n) {
-  n = +n; if (n === state.plate) return;
+  n = Number(n); if (!PLATES[n] || n === state.plate) return;
   const [R, C] = PLATES[n];
   const lost = Object.keys(state.wells).filter(id => { const [r, c] = parseW(id); return r >= R || c >= C; });
   if (lost.length && !confirm(`${lost.length} filled well${lost.length > 1 ? 's' : ''} won't fit on a ${n}-well plate and will be removed. Continue? (Undo brings them back.)`)) return;
   snapshot(); lost.forEach(id => delete state.wells[id]);
-  state.plate = n; sel.clear(); renderAll();
+  state.plate = n; sel.clear(); resetPointer(); renderAll();
 }
 function addGroup() {
+  if (state.groups.length >= LIM.groups) return toast(`Up to ${LIM.groups} groups`);
   snapshot();
   const usedC = new Set(state.groups.map(g => g.color.toLowerCase()));
   const color = PALETTE.find(c => !usedC.has(c)) || PALETTE[state.groups.length % PALETTE.length];
   state.groups.push({id: uid(), name: `Group ${state.groups.length + 1}`, color});
-  renderGroups(); renderBar(); persist();
-  const inp = document.querySelectorAll('#groups .gname'); const last = inp[inp.length - 1];
+  renderGroups(); renderBar(); persist(); commit();
+  const inp = document.querySelectorAll('#groups .gname'), last = inp[inp.length - 1];
   last.focus(); last.select();
 }
-
-/* ---------- plate interaction ---------- */
-const plate = $('#plate');
-function dragTo(r, c) {
-  if (r !== drag.r0 || c !== drag.c0) drag.moved = true;
-  sel = new Set(drag.base);
-  for (let i = Math.min(r, drag.r0); i <= Math.max(r, drag.r0); i++)
-    for (let j = Math.min(c, drag.c0); j <= Math.max(c, drag.c0); j++) sel.add(wid(i, j));
-  paintSel();
+function openText(text, name) {
+  let d = null;
+  try { d = normalize(JSON.parse(text)); } catch {}
+  if (!d) { toast('That file isn\'t a plate map saved from this tool (.json)'); return false; }
+  snapshot(); state = d; sel.clear(); resetPointer(); renderAll();
+  toast('Opened ' + (name || 'plate map'));
+  return true;
 }
-plate.addEventListener('pointerdown', e => {
-  const t = e.target.closest('[data-w],[data-r],[data-c],[data-all]');
-  if (!t) return;
-  e.preventDefault();
-  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-  const add = e.shiftKey || e.ctrlKey || e.metaKey;
-  if (t.dataset.w) {
-    const [r, c] = parseW(t.dataset.w);
-    drag = {r0: r, c0: c, base: add ? new Set(sel) : new Set(), add, was: sel.has(t.dataset.w), id: t.dataset.w, moved: false};
-    try { plate.setPointerCapture(e.pointerId); } catch {}
-    dragTo(r, c); return;
-  }
+
+/* ---------- selection ---------- */
+const allIds = () => { const [R, C] = PLATES[state.plate], a = []; for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) a.push(wid(r, c)); return a; };
+function rectIds(a, b) {
+  const [r0, c0] = parseW(a), [r1, c1] = parseW(b), out = [];
+  for (let i = Math.min(r0, r1); i <= Math.max(r0, r1); i++) for (let j = Math.min(c0, c1); j <= Math.max(c0, c1); j++) out.push(wid(i, j));
+  return out;
+}
+function lineIds(t) {
   const [R, C] = PLATES[state.plate], ids = [];
   if (t.dataset.r != null) for (let c = 0; c < C; c++) ids.push(wid(+t.dataset.r, c));
   else if (t.dataset.c != null) for (let r = 0; r < R; r++) ids.push(wid(r, +t.dataset.c));
-  else for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) ids.push(wid(r, c));
+  else ids.push(...allIds());
+  return ids;
+}
+function selectLine(t, add) {
+  const ids = lineIds(t);
+  anchor = ids[0]; cursor = ids[ids.length - 1];
   if (add && ids.every(i => sel.has(i))) ids.forEach(i => sel.delete(i));
   else { if (!add) sel.clear(); ids.forEach(i => sel.add(i)); }
-  paintSel(); renderBar();
+  selChanged();
+}
+function selChanged() { paintSel(); renderBar(); }
+function clearSelection() { if (drag) return; sel.clear(); anchor = cursor = null; selChanged(); }
+function dragTo(id) {
+  if (id !== drag.id) drag.moved = true;
+  cursor = id;
+  sel = new Set(drag.base);
+  rectIds(drag.id, id).forEach(i => sel.add(i));
+  paintSel();
+}
+const target = e => e.target.closest && e.target.closest('[data-w],[data-r],[data-c],[data-all]');
+
+plate.addEventListener('pointerdown', e => {
+  if (drag) return;                                            // ignore a second finger or pen mid-drag
+  lastPtr = e.pointerType || 'mouse';
+  if (lastPtr === 'touch' || e.button !== 0) return;           // touch is handled on click so the page can still scroll
+  const t = target(e); if (!t) return;
+  e.preventDefault();
+  plate.focus({preventScroll: true});
+  const add = e.shiftKey || e.ctrlKey || e.metaKey;
+  if (t.dataset.w) {
+    drag = {id: t.dataset.w, base: add ? new Set(sel) : new Set(), add, was: sel.has(t.dataset.w), moved: false, pid: e.pointerId};
+    anchor = t.dataset.w;
+    try { plate.setPointerCapture(e.pointerId); } catch {}
+    dragTo(t.dataset.w); return;
+  }
+  selectLine(t, add);
 });
 plate.addEventListener('pointermove', e => {
-  if (!drag) return;
+  if (!drag || e.pointerId !== drag.pid) return;
   const el = document.elementFromPoint(e.clientX, e.clientY);
-  const g = el && el.closest && el.closest('[data-w]');
-  if (g) { const [r, c] = parseW(g.dataset.w); dragTo(r, c); }
+  const g = el && el.closest && el.closest('#plate [data-w]');
+  if (g) dragTo(g.dataset.w);
 });
-const endDrag = () => {
-  if (!drag) return;
+const endDrag = e => {
+  if (!drag || (e && e.pointerId !== drag.pid)) return;
   if (!drag.moved && drag.add && drag.was) sel.delete(drag.id);
-  drag = null; paintSel(); renderBar();
+  drag = null; selChanged();
 };
-plate.addEventListener('pointerup', endDrag);
-plate.addEventListener('pointercancel', endDrag);
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => plate.addEventListener(t, endDrag));
+plate.addEventListener('click', e => {
+  if (lastPtr !== 'touch') return;
+  const t = target(e); if (!t) return;
+  if (t.dataset.w) { const id = t.dataset.w; sel.has(id) ? sel.delete(id) : sel.add(id); anchor = cursor = id; selChanged(); }
+  else selectLine(t, true);
+});
+
+function moveCursor(dr, dc, extend) {
+  const [R, C] = PLATES[state.plate];
+  let r = 0, c = 0;
+  if (cursor) { [r, c] = parseW(cursor); r = Math.max(0, Math.min(R - 1, r + dr)); c = Math.max(0, Math.min(C - 1, c + dc)); }
+  cursor = wid(r, c);
+  if (!extend || !anchor) anchor = cursor;
+  sel = new Set(extend ? rectIds(anchor, cursor) : [cursor]);
+  selChanged();
+}
 
 /* ---------- UI wiring ---------- */
 $('#plateSeg').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) setPlate(b.dataset.p); });
-$('#title').addEventListener('input', e => { state.title = e.target.value; renderPlate(); persist(); });
-$('#notes').addEventListener('input', e => { state.notes = e.target.value; renderPlate(); persist(); });
+$('#title').addEventListener('input', e => { state.title = clean(e.target.value, LIM.title); renderPlate(); persist(); });
+$('#notes').addEventListener('input', e => { state.notes = clean(e.target.value, LIM.notes, true); renderPlate(); persist(); });
 $('#addGroup').addEventListener('click', addGroup);
 $('#groups').addEventListener('input', e => {
   const row = e.target.closest('.grp'); if (!row) return;
   const g = state.groups.find(x => x.id === row.dataset.id); if (!g) return;
-  if (e.target.type === 'color') { g.color = e.target.value; row.querySelector('.sw').style.background = g.color; }
-  else g.name = e.target.value;
+  if (e.target.type === 'color') { if (!HEX.test(e.target.value)) return; g.color = e.target.value.toLowerCase(); row.querySelector('.sw').style.background = g.color; }
+  else g.name = clean(e.target.value, LIM.group);
   renderPlate(); renderBar(); persist();
 });
 $('#groups').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('gname')) e.target.blur(); });
 $('#groups').addEventListener('click', e => {
   if (!e.target.classList.contains('x')) return;
   const id = e.target.closest('.grp').dataset.id, g = state.groups.find(x => x.id === id);
+  if (!g) return;
   const n = Object.values(state.wells).filter(w => w.g === id).length;
   if (n && !confirm(`Delete "${g.name || 'Untitled'}"? ${n} well${n > 1 ? 's' : ''} will lose this group (labels stay).`)) return;
   snapshot();
@@ -479,25 +593,30 @@ $('#selBar').addEventListener('click', e => {
   if (chip) return assign(chip.dataset.g);
   if (e.target.id === 'lblApply') return applyLabel();
   if (e.target.id === 'clearSel') return clearSel();
-  if (e.target.id === 'selNone') { sel.clear(); paintSel(); renderBar(); }
+  if (e.target.id === 'selNone') clearSelection();
 });
 $('#selBar').addEventListener('change', e => {
   if (e.target.id === 'lblNum') numOn = e.target.checked;
   if (e.target.id === 'lblOrder') numOrder = e.target.value;
 });
-$('#selBar').addEventListener('keydown', e => { if (e.target.id === 'lblIn' && e.key === 'Enter') { e.preventDefault(); applyLabel(); } });
+$('#selBar').addEventListener('keydown', e => { if (e.target.id === 'lblIn' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); applyLabel(); } });
 
+const ARROWS = {ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1]};
 document.addEventListener('keydown', e => {
-  const typing = e.target.matches('input,textarea,select');
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); return undo(); }
-  if (typing) return;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-    e.preventDefault(); const [R, C] = PLATES[state.plate];
-    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) sel.add(wid(r, c));
-    paintSel(); renderBar(); return;
+  if (e.isComposing) return;
+  // Checkboxes and colour swatches keep focus after a click; they must not swallow the shortcuts.
+  const typing = e.target.matches && e.target.matches('input:not([type=checkbox]):not([type=color]):not([type=radio]):not([type=file]),textarea,select,[contenteditable]');
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && !typing && !e.altKey) {
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); return undo(); }
+    if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); return redo(); }
+    if (k === 'a') { e.preventDefault(); const a = allIds(); sel = new Set(a); anchor = a[0]; cursor = a[a.length - 1]; return selChanged(); }
   }
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape') { sel.clear(); paintSel(); renderBar(); }
+  if (typing || mod || e.altKey) return;
+  if (ARROWS[e.key] && (document.activeElement === plate || sel.size)) {
+    e.preventDefault(); const [dr, dc] = ARROWS[e.key]; return moveCursor(dr, dc, e.shiftKey);
+  }
+  if (e.key === 'Escape') clearSelection();
   else if ((e.key === 'Delete' || e.key === 'Backspace') && sel.size) { e.preventDefault(); clearSel(); }
   else if (/^[0-9]$/.test(e.key) && sel.size) {
     const n = +e.key; if (n === 0) assign(''); else if (state.groups[n - 1]) assign(state.groups[n - 1].id);
@@ -505,59 +624,71 @@ document.addEventListener('keydown', e => {
 });
 
 $('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
 $('#newBtn').addEventListener('click', () => {
-  if (Object.keys(state.wells).length && !confirm('Start a new blank plate map? (Undo brings this one back.)')) return;
-  snapshot(); const p = state.plate; state = fresh(); state.plate = p; sel.clear(); renderAll();
+  if ((Object.keys(state.wells).length || state.title || state.notes) && !confirm('Start a new blank plate map? (Undo brings this one back.)')) return;
+  snapshot(); const p = state.plate; state = fresh(); state.plate = p; sel.clear(); resetPointer(); renderAll();
 });
 $('#openBtn').addEventListener('click', () => $('#fileIn').click());
 $('#fileIn').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
-  try {
-    const d = normalize(JSON.parse(await f.text()));
-    if (!d) throw new Error();
-    snapshot(); state = d; sel.clear(); renderAll(); toast('Opened ' + f.name);
-  } catch { toast('That file isn\'t a plate map saved from this tool (.json)'); }
+  if (f.size > LIM.fileBytes) return toast('That file is too large to be a plate map');
+  try { openText(await f.text(), f.name); } catch { toast('Could not read that file'); }
 });
 
 /* ---------- export ---------- */
-const baseName = () => (state.title.trim().replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 60)) || `plate-map-${state.plate}well`;
+function baseName() {
+  let b = state.title.trim().replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').replace(/^[-_.]+|[-_.]+$/g, '').slice(0, 60);
+  if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(b)) b += '_plate-map';
+  return b || `plate-map-${state.plate}well`;
+}
 function download(name, blob) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 function svgFile() { return '<?xml version="1.0" encoding="UTF-8"?>\n' + buildSVG(true).svg; }
+function loadImg(src) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('could not render the image')); i.src = src; });
+}
 async function pngBlob(scale = 3) {
   const {svg, W, H} = buildSVG(true);
-  const img = new Image();
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-  await img.decode();
-  const cv = document.createElement('canvas'); cv.width = W * scale; cv.height = H * scale;
+  scale = Math.min(scale, Math.sqrt(16e6 / (W * H)));   // stay under mobile canvas limits
+  const img = await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+  const cv = document.createElement('canvas'); cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
   const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.drawImage(img, 0, 0, cv.width, cv.height);
-  return new Promise(res => cv.toBlob(res, 'image/png'));
+  return new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('image too large')), 'image/png'));
+}
+const NUM = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
+function csvCell(v) {
+  v = String(v);
+  if (/^\s*[=+\-@]/.test(v) && !NUM.test(v.trim())) v = "'" + v;           // stop spreadsheets running labels as formulas
+  return /[",\r\n]|^\s|\s$/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 function csvFile() {
-  const q = v => /[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
-  const [R, C] = PLATES[state.plate], gmap = Object.fromEntries(state.groups.map(g => [g.id, g]));
+  const [R, C] = PLATES[state.plate], gmap = new Map(state.groups.map(g => [g.id, g]));
   const lines = [['Well', 'Row', 'Column', 'Group', 'Label', 'Colour'].join(',')];
   for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
-    const id = wid(r, c), w = state.wells[id] || {}, g = w.g && gmap[w.g];
-    lines.push([id, rowName(r), c + 1, g ? g.name : '', w.t || '', g ? g.color : ''].map(q).join(','));
+    const id = wid(r, c), w = state.wells[id] || {}, g = w.g && gmap.get(w.g);
+    lines.push([id, rowName(r), c + 1, g ? (g.name.trim() || 'Untitled') : '', w.t || '', g ? g.color : ''].map(csvCell).join(','));
   }
-  return '﻿' + lines.join('\r\n');
+  return '﻿' + lines.join('\r\n') + '\r\n';
 }
+const jsonFile = () => JSON.stringify({app: 'plate-map', version: 1, ...state}, null, 2);
 function preparePrint() { $('#print').innerHTML = buildSVG(true).svg; }
 window.addEventListener('beforeprint', preparePrint);
 
+let busy = false;
 document.querySelector('.exp').addEventListener('click', async e => {
-  const b = e.target.closest('[data-x]'); if (!b) return;
+  const b = e.target.closest('[data-x]'); if (!b || busy) return;
   const x = b.dataset.x;
+  busy = true;
   try {
     if (x === 'png') download(baseName() + '.png', await pngBlob());
     if (x === 'svg') download(baseName() + '.svg', new Blob([svgFile()], {type: 'image/svg+xml'}));
-    if (x === 'csv') download(baseName() + '.csv', new Blob([csvFile()], {type: 'text/csv'}));
-    if (x === 'json') download(baseName() + '.json', new Blob([JSON.stringify({app: 'plate-map', version: 1, ...state}, null, 2)], {type: 'application/json'}));
+    if (x === 'csv') download(baseName() + '.csv', new Blob([csvFile()], {type: 'text/csv;charset=utf-8'}));
+    if (x === 'json') download(baseName() + '.json', new Blob([jsonFile()], {type: 'application/json'}));
     if (x === 'pdf') { preparePrint(); window.print(); }
     if (x === 'copy') {
       if (!navigator.clipboard || !window.ClipboardItem) throw new Error('nocopy');
@@ -565,13 +696,23 @@ document.querySelector('.exp').addEventListener('click', async e => {
       toast('Image copied. Paste it into your document.');
     }
   } catch (err) {
-    toast(x === 'copy' ? 'Your browser blocked copying. Use PNG instead.' : 'Export failed: ' + (err.message || err));
-  }
+    toast(x === 'copy' ? 'Your browser blocked copying. Use PNG instead.' : 'Export failed: ' + (err && err.message || err));
+  } finally { busy = false; }
 });
 
 let tt;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600); }
 
+/* Read-only hooks for the test page and for anyone scripting the tool. */
+window.plateMap = Object.freeze({
+  state: () => JSON.parse(JSON.stringify(state)),
+  selection: () => sortedSel('row'),
+  open: text => openText(text),
+  svg: () => svgFile(), csv: () => csvFile(), json: () => jsonFile(),
+  fileName: () => baseName(), png: () => pngBlob(), normalize: d => normalize(d)
+});
+
+renderLead();
 renderAll();
 })();
 </script>

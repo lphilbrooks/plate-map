@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plate Map tests</title>
+<style>
+body{font:13px/1.5 ui-monospace,Consolas,monospace;margin:16px;background:#fff;color:#111}
+#app{width:1200px;height:1400px;border:1px solid #ccc}
+.pass{color:#1a7f37}.fail{color:#b42318;font-weight:bold}
+pre{white-space:pre-wrap}
+</style>
+</head>
+<body>
+<p>Serve the folder over http (e.g. <code>python -m http.server</code>) and open <code>/tests/</code>. The summary also lands in the page title.</p>
+<pre id="out">Running…</pre>
+<iframe id="app" title="app under test"></iframe>
+<script>
+'use strict';
+const STORE = 'plateMap.v1:test';   // the app is loaded with ?store=test, so a real autosave is never touched
+const REAL = 'plateMap.v1';
+const realBefore = localStorage.getItem(REAL);
+const out = document.getElementById('out'), frame = document.getElementById('app');
+const tests = [];
+const test = (name, fn) => tests.push({name, fn});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let W, D, PM;   // app window, document, plateMap hook
+
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function eq(a, b, msg) {
+  const A = JSON.stringify(a), B = JSON.stringify(b);
+  if (A !== B) throw new Error(`${msg || 'not equal'}: got ${A}, expected ${B}`);
+}
+
+async function boot(stored) {
+  localStorage.removeItem(STORE);
+  if (stored !== undefined) localStorage.setItem(STORE, typeof stored === 'string' ? stored : JSON.stringify(stored));
+  await new Promise(res => { frame.onload = res; frame.src = '../index.html?store=test&t=' + Math.random(); });
+  W = frame.contentWindow; D = W.document; PM = W.plateMap;
+  W.confirm = () => true;
+  W.__downloads = [];
+  W.HTMLAnchorElement.prototype.click = function () { W.__downloads.push(this.download); };
+  assert(PM, 'plateMap hook missing');
+}
+const $ = s => D.querySelector(s);
+const $$ = s => [...D.querySelectorAll(s)];
+const st = () => PM.state();
+
+function ptr(type, el, o = {}) {
+  const r = el.getBoundingClientRect();
+  el.dispatchEvent(new W.PointerEvent(type, {bubbles: true, cancelable: true, composed: true,
+    clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, pointerId: 1, pointerType: 'mouse', button: 0, isPrimary: true, ...o}));
+}
+const wellHit = id => $(`#plate [data-w="${id}"] rect`);
+function drag(a, b, o = {}) { ptr('pointerdown', wellHit(a), o); if (b && b !== a) ptr('pointermove', wellHit(b), o); ptr('pointerup', wellHit(b || a), o); }
+const clickWell = (id, o) => drag(id, id, o);
+function key(k, o = {}) { D.body.dispatchEvent(new W.KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true, ...o})); }
+function keyOn(el, k, o = {}) { el.dispatchEvent(new W.KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true, ...o})); }
+function chip(i) { return $$('#selBar [data-g]')[i]; }
+function label(text, num, order) {
+  $('#lblIn').value = text;
+  const c = $('#lblNum'); if (!!num !== c.checked) c.click();
+  if (order) { $('#lblOrder').value = order; $('#lblOrder').dispatchEvent(new W.Event('change', {bubbles: true})); }
+  $('#lblApply').click();
+}
+function type(el, v) { el.focus(); el.value = v; el.dispatchEvent(new W.Event('input', {bubbles: true})); el.dispatchEvent(new W.Event('change', {bubbles: true})); el.blur(); }
+const sizes = {6: [2, 3], 12: [3, 4], 24: [4, 6], 48: [6, 8], 96: [8, 12], 384: [16, 24]};
+
+/* ---------------- rendering ---------------- */
+test('default load: 96 wells, two groups, nothing selected', async () => {
+  await boot();
+  eq($$('#plate .w').length, 96);
+  eq(st().groups.map(g => g.name), ['Control', 'Treatment']);
+  eq(PM.selection(), []);
+});
+test('every plate size renders the right wells and last well id', async () => {
+  await boot();
+  for (const [n, [R, C]] of Object.entries(sizes)) {
+    $(`[data-p="${n}"]`).click();
+    eq(st().plate, +n, 'plate');
+    eq($$('#plate .w').length, R * C, n + ' well count');
+    const last = String.fromCharCode(64 + R) + C;
+    assert($(`#plate [data-w="${last}"]`), 'missing ' + last);
+    assert(!$(`#plate [data-w="${String.fromCharCode(65 + R)}1"]`), 'extra row on ' + n);
+  }
+});
+
+/* ---------------- selection ---------------- */
+test('drag A1 to C3 selects 9 wells; dragging backwards works too', async () => {
+  await boot();
+  drag('A1', 'C3'); eq(PM.selection().length, 9);
+  drag('H12', 'G11'); eq(PM.selection(), ['G11', 'G12', 'H11', 'H12']);
+});
+test('shift-click adds, ctrl-click on a selected well removes it', async () => {
+  await boot();
+  clickWell('A1'); clickWell('B2', {shiftKey: true}); eq(PM.selection(), ['A1', 'B2']);
+  clickWell('A1', {ctrlKey: true}); eq(PM.selection(), ['B2']);
+  clickWell('C3'); eq(PM.selection(), ['C3'], 'plain click replaces');
+});
+test('row, column and corner headers; shift toggles a full line off', async () => {
+  await boot();
+  ptr('pointerdown', $('[data-r="1"]')); eq(PM.selection().length, 12); assert(PM.selection().every(w => w[0] === 'B'));
+  ptr('pointerdown', $('[data-c="0"]'), {shiftKey: true}); eq(PM.selection().length, 19);
+  ptr('pointerdown', $('[data-c="0"]'), {shiftKey: true}); eq(PM.selection().length, 11, 'column toggled off');
+  ptr('pointerdown', $('[data-all]')); eq(PM.selection().length, 96);
+});
+test('Escape clears; Ctrl+A selects all', async () => {
+  await boot();
+  key('a', {ctrlKey: true}); eq(PM.selection().length, 96);
+  key('Escape'); eq(PM.selection().length, 0);
+});
+test('arrow keys move a single selection; Shift+arrows extend; clamped at edges', async () => {
+  await boot();
+  clickWell('A1');
+  key('ArrowRight'); eq(PM.selection(), ['A2']);
+  key('ArrowDown', {shiftKey: true}); key('ArrowRight', {shiftKey: true}); eq(PM.selection(), ['A2', 'A3', 'B2', 'B3']);
+  key('ArrowUp'); key('ArrowUp'); key('ArrowLeft'); key('ArrowLeft'); key('ArrowLeft'); eq(PM.selection(), ['A1'], 'clamped');
+});
+test('touch: tap toggles wells without needing modifiers, taps on headers toggle lines', async () => {
+  await boot();
+  const tap = el => { ptr('pointerdown', el, {pointerType: 'touch'}); el.dispatchEvent(new W.MouseEvent('click', {bubbles: true})); };
+  tap(wellHit('A1')); tap(wellHit('B2')); eq(PM.selection(), ['A1', 'B2']);
+  tap(wellHit('A1')); eq(PM.selection(), ['B2']);
+  tap($('[data-r="2"]')); eq(PM.selection().length, 13);
+});
+test('a second pointer during a drag is ignored; right-click does nothing', async () => {
+  await boot();
+  ptr('pointerdown', wellHit('A1'));
+  ptr('pointerdown', wellHit('H12'), {pointerId: 2});
+  ptr('pointerup', wellHit('A1'));
+  eq(PM.selection(), ['A1']);
+  ptr('pointerdown', wellHit('D4'), {button: 2}); ptr('pointerup', wellHit('D4'), {button: 2});
+  eq(PM.selection(), ['A1']);
+});
+
+/* ---------------- editing ---------------- */
+test('assign by chip, by number key, and remove with 0', async () => {
+  await boot();
+  const [g1, g2] = st().groups.map(g => g.id);
+  drag('A1', 'A3'); chip(0).click();
+  eq(['A1', 'A2', 'A3'].map(w => st().wells[w].g), [g1, g1, g1]);
+  key('2'); eq(st().wells.A2.g, g2);
+  key('0'); eq(st().wells.A2, undefined, 'empty wells are removed from state');
+});
+test('labels: plain, numbered across rows, numbered down columns, blank clears', async () => {
+  await boot();
+  drag('A1', 'B2'); label('Rep', true, 'row');
+  eq(['A1', 'A2', 'B1', 'B2'].map(w => st().wells[w].t), ['Rep 1', 'Rep 2', 'Rep 3', 'Rep 4']);
+  label('Rep', true, 'col');
+  eq(['A1', 'B1', 'A2', 'B2'].map(w => st().wells[w].t), ['Rep 1', 'Rep 2', 'Rep 3', 'Rep 4']);
+  label('', true); eq(st().wells.B2.t, '4', 'numbers only');
+  label('   ', false); eq(Object.keys(st().wells).length, 0, 'blank label clears');
+});
+test('Enter in the label box applies it', async () => {
+  await boot();
+  clickWell('C5'); $('#lblIn').value = '10 µM'; keyOn($('#lblIn'), 'Enter');
+  eq(st().wells.C5.t, '10 µM');
+});
+test('Delete key clears selected wells but typing Delete in an input does not', async () => {
+  await boot();
+  drag('A1', 'A2'); chip(0).click();
+  $('#lblIn').focus(); keyOn($('#lblIn'), 'Delete'); eq(Object.keys(st().wells).length, 2);
+  $('#lblIn').blur(); key('Delete'); eq(Object.keys(st().wells).length, 0);
+});
+test('undo and redo across edits; new edit clears redo', async () => {
+  await boot();
+  clickWell('A1'); chip(0).click(); clickWell('A2'); chip(1).click();
+  $('#undoBtn').click(); assert(!st().wells.A2, 'A2 undone'); assert(st().wells.A1, 'A1 kept');
+  key('y', {ctrlKey: true}); assert(st().wells.A2, 'redo');
+  key('z', {ctrlKey: true}); key('z', {ctrlKey: true}); eq(Object.keys(st().wells).length, 0);
+  clickWell('B1'); chip(0).click(); $('#redoBtn').click(); eq(Object.keys(st().wells), ['B1'], 'redo cleared');
+});
+test('title edit is undoable as one step', async () => {
+  await boot();
+  type($('#title'), 'Exp 1'); eq(st().title, 'Exp 1');
+  $('#undoBtn').click(); eq(st().title, '');
+});
+test('shrinking the plate: cancel keeps data, accept drops out-of-range wells, undo restores', async () => {
+  await boot();
+  clickWell('H12'); chip(0).click(); clickWell('A1'); chip(0).click();
+  W.confirm = () => false; $('[data-p="6"]').click(); eq(st().plate, 96);
+  W.confirm = () => true; $('[data-p="6"]').click(); eq(st().plate, 6); eq(Object.keys(st().wells), ['A1']);
+  $('#undoBtn').click(); eq(st().plate, 96); assert(st().wells.H12);
+});
+test('deleting a used group keeps labels but removes the group', async () => {
+  await boot();
+  clickWell('A1'); chip(0).click(); label('keep me');
+  $('.grp .x').click();
+  eq(st().groups.length, 1); eq(st().wells.A1, {t: 'keep me'});
+});
+test('group cap: cannot add more than 60 groups', async () => {
+  await boot();
+  for (let i = 0; i < 70; i++) $('#addGroup').click();
+  eq(st().groups.length, 60); assert($('#addGroup').disabled);
+});
+test('group rename and colour change reach the legend', async () => {
+  await boot();
+  clickWell('A1'); chip(0).click();
+  type($('.gname'), 'Vehicle');
+  const c = $('.grp input[type=color]'); c.value = '#123456'; c.dispatchEvent(new W.Event('input', {bubbles: true}));
+  const svg = PM.svg(); assert(svg.includes('>Vehicle<')); assert(svg.includes('fill="#123456"'));
+});
+
+/* ---------------- loading and safety ---------------- */
+test('malicious .json cannot inject markup (ids, names, labels, colours)', async () => {
+  await boot();
+  W.__pwned = 0;
+  const evil = '"><img src=x onerror="parent.__pwned=1;window.__pwned=1">';
+  const ok = PM.open(JSON.stringify({plate: 96, title: evil, notes: evil,
+    groups: [{id: evil, name: evil, color: 'red;background:url(x)'}], wells: {A1: {g: evil, t: evil}}}));
+  assert(ok, 'file should load (sanitised)');
+  clickWell('A1');
+  await sleep(50);
+  eq($$('img').length, 0, 'no injected img'); eq(W.__pwned, 0); assert(!window.__pwned);
+  const g = st().groups[0];
+  assert(/^[A-Za-z0-9_-]+$/.test(g.id), 'id regenerated'); eq(st().wells.A1.g, g.id, 'well remapped to new id');
+  assert(/^#[0-9a-f]{6}$/.test(g.color), 'colour replaced');
+});
+test('normalize: bad well keys are dropped or made canonical', async () => {
+  await boot();
+  const d = PM.normalize({plate: '96', groups: [], wells: {A0: {t: 'x'}, Z1: {t: 'x'}, A13: {t: 'x'}, a01: {t: 'ok'}, I1: {t: 'x'}, B2: null, C3: 'str', D4: {t: '  '}}});
+  eq(d.plate, 96); eq(d.wells, {A1: {t: 'ok'}});
+  eq(PM.normalize({plate: 384, groups: [], wells: {P24: {t: 'y'}, Q1: {t: 'n'}}}).wells, {P24: {t: 'y'}});
+});
+test('normalize rejects things that are not plate maps', async () => {
+  await boot();
+  for (const bad of [null, 1, 'x', [], {}, {plate: 95, groups: []}, {plate: 96}, {plate: 96, groups: {}}])
+    eq(PM.normalize(bad), null, JSON.stringify(bad));
+  assert(!PM.open('not json'), 'bad text rejected'); assert(!PM.open('{"plate":96}'));
+});
+test('normalize: duplicate group ids get unique ids; wells keep the first', async () => {
+  await boot();
+  const d = PM.normalize({plate: 96, groups: [{id: 'a', name: '1', color: '#111111'}, {id: 'a', name: '2', color: '#222222'}], wells: {A1: {g: 'a'}}});
+  eq(d.groups.length, 2); assert(d.groups[0].id !== d.groups[1].id); eq(d.wells.A1.g, 'a');
+});
+test('lengths are capped and control characters stripped', async () => {
+  await boot();
+  PM.open(JSON.stringify({plate: 96, title: 'T'.repeat(500), notes: 'n\u0001\r\nline2', groups: [{id: 'g', name: 'G'.repeat(300), color: '#abcdef'}], wells: {A1: {t: 'L'.repeat(999) + '\u0007'}}}));
+  eq(st().title.length, 200); eq(st().groups[0].name.length, 80); eq(st().wells.A1.t.length, 200);
+  eq(st().notes, 'n\nline2');
+});
+test('corrupt localStorage falls back to a fresh map without errors', async () => {
+  await boot('{not json');
+  eq(st().plate, 96); eq(st().groups.length, 2);
+  await boot({plate: 7, groups: [], wells: {}});
+  eq(st().plate, 96);
+});
+test('state persists across reloads', async () => {
+  await boot();
+  clickWell('B3'); label('saved');
+  const saved = localStorage.getItem(STORE);
+  await boot(saved);
+  eq(st().wells.B3.t, 'saved');
+});
+test('json round trip: save then open gives the same state', async () => {
+  await boot();
+  drag('A1', 'B6'); chip(1).click(); label('x', true); type($('#title'), 'Round trip');
+  const before = st(), text = PM.json();
+  $('#newBtn').click(); eq(Object.keys(st().wells).length, 0);
+  assert(PM.open(text)); eq(st(), before);
+});
+
+/* ---------------- exports ---------------- */
+test('SVG export is well-formed XML even with awkward text', async () => {
+  await boot();
+  const nasty = 'a & b < c > "d" \'e\' 🧪 µM\u0001 \uD800';
+  clickWell('A1'); chip(0).click(); label(nasty); type($('.gname'), nasty); type($('#title'), nasty); type($('#notes'), nasty + '\n' + nasty);
+  const doc = new DOMParser().parseFromString(PM.svg(), 'image/svg+xml');
+  eq(doc.getElementsByTagName('parsererror').length, 0, 'parse errors');
+  eq(doc.querySelectorAll('[data-all],[data-r],[data-c],.hit-h').length, 0, 'no interactive hit areas in export');
+  assert(!PM.svg().includes('class="w sel"'), 'no selection styling in export');
+});
+test('CSV: one row per well, BOM, quoting, formula guard, numbers left alone', async () => {
+  await boot();
+  clickWell('A1'); label('=HYPERLINK("x")');
+  clickWell('A2'); label('-5');
+  clickWell('A3'); label('a, "b"');
+  clickWell('A4'); label('@cmd');
+  clickWell('A5'); chip(0).click(); type($('.gname'), '+ve control');
+  const csv = PM.csv(), rows = csv.replace(/^﻿/, '').trim().split('\r\n');
+  assert(csv.startsWith('﻿'), 'BOM');
+  eq(rows.length, 97);
+  eq(rows[1], `A1,A,1,,"'=HYPERLINK(""x"")",`);
+  eq(rows[2], 'A2,A,2,,-5,');
+  eq(rows[3], 'A3,A,3,,"a, ""b""",');
+  eq(rows[4], "A4,A,4,,'@cmd,");
+  assert(rows[5].startsWith("A5,A,5,'+ve control,"), rows[5]);
+});
+test('file names are safe', async () => {
+  await boot();
+  eq(PM.fileName(), 'plate-map-96well');
+  type($('#title'), 'MTT / HeLa: 48h?'); eq(PM.fileName(), 'MTT_HeLa_48h');
+  type($('#title'), 'CON'); eq(PM.fileName(), 'CON_plate-map');
+  type($('#title'), 'µ 日本'); eq(PM.fileName(), 'plate-map-96well');
+  type($('#title'), '...'); eq(PM.fileName(), 'plate-map-96well');
+});
+test('PNG export renders a real image for the biggest and smallest plates', async () => {
+  await boot();
+  for (const n of [384, 6]) {
+    $(`[data-p="${n}"]`).click(); ptr('pointerdown', $('[data-all]')); chip(0).click(); label('Rep', true);
+    type($('#notes'), 'line\n'.repeat(20));
+    const b = await PM.png();
+    eq(b.type, 'image/png'); assert(b.size > 20000, 'png too small: ' + b.size);
+    const bmp = await createImageBitmap(b);
+    assert(bmp.width * bmp.height <= 16e6 + 1, 'canvas too big');
+  }
+});
+test('export buttons trigger downloads with sensible names', async () => {
+  await boot();
+  type($('#title'), 'Exp');
+  for (const x of ['svg', 'csv', 'json', 'png']) $(`[data-x="${x}"]`).click(), await sleep(x === 'png' ? 400 : 20);
+  eq(W.__downloads.sort(), ['Exp.csv', 'Exp.json', 'Exp.png', 'Exp.svg']);
+});
+
+/* ---------------- layout ---------------- */
+test('long labels never overflow their well', async () => {
+  await boot();
+  for (const n of [384, 96, 6]) {
+    $(`[data-p="${n}"]`).click();
+    ptr('pointerdown', $('[data-all]'));
+    label('Supercalifragilisticexpialidocious treatment condition with a very long description indeed');
+    const g = $('#plate [data-w="A1"]'), well = g.querySelector('.well').getBBox(), txt = g.querySelector('text').getBBox();
+    assert(txt.width <= well.width + 0.5, `${n}: text ${txt.width.toFixed(1)} > well ${well.width.toFixed(1)}`);
+    assert(txt.height <= well.height + 0.5, `${n}: text too tall`);
+    assert(g.textContent.includes('…'), `${n}: expected ellipsis`);
+  }
+});
+test('many long group names wrap the legend inside the image', async () => {
+  await boot();
+  for (let i = 0; i < 20; i++) $('#addGroup').click();
+  const n = st().groups.length;
+  for (let i = 0; i < n; i++) { clickWell('ABCDEFGH'[Math.floor(i / 12)] + (i % 12 + 1)); chip(i).click(); }
+  eq(new Set(Object.values(st().wells).map(w => w.g)).size, n, 'every group used');
+  $$('.gname').forEach((el, i) => type(el, 'Group with an extremely long descriptive name number ' + i));
+  const doc = new DOMParser().parseFromString(PM.svg(), 'image/svg+xml'), svg = doc.documentElement;
+  const Wd = +svg.getAttribute('width');
+  D.body.insertAdjacentHTML('beforeend', `<div id="m">${PM.svg().replace(/^<\?xml[^>]*>\s*/, '')}</div>`);
+  const texts = [...D.querySelectorAll('#m text')];
+  assert(texts.every(t => { const b = t.getBBox(); return b.x >= 0 && b.x + b.width <= Wd + 0.5; }), 'text outside image');
+  D.getElementById('m').remove();
+});
+
+/* ---------------- regressions from external review ---------------- */
+test('numbered labels at the length cap keep their numbers after reload', async () => {
+  await boot();
+  drag('A1', 'A12'); label('x'.repeat(200), true);
+  eq(st().wells.A12.t.length, 200); assert(st().wells.A12.t.endsWith(' 12'));
+  await boot(localStorage.getItem(STORE));
+  assert(st().wells.A12.t.endsWith(' 12'), 'number lost on reload');
+});
+test('releasing a second pointer does not end the first drag', async () => {
+  await boot();
+  ptr('pointerdown', wellHit('A1'));
+  ptr('pointerdown', wellHit('H12'), {pointerId: 2}); ptr('pointerup', wellHit('H12'), {pointerId: 2});
+  ptr('pointermove', wellHit('B2')); ptr('pointerup', wellHit('B2'));
+  eq(PM.selection(), ['A1', 'A2', 'B1', 'B2']);
+});
+test('lone surrogates are replaced even without String.prototype.toWellFormed', async () => {
+  await boot();
+  const native = W.String.prototype.toWellFormed;
+  try {
+    delete W.String.prototype.toWellFormed;
+    const d = PM.normalize({plate: 96, groups: [], title: '\uDC00\uDC00a\uD800', wells: {A1: {t: 'ok 🧪'}}});
+    eq(d.title, '��a�'); eq(d.wells.A1.t, 'ok 🧪');
+    assert(PM.open(JSON.stringify({plate: 96, groups: [], title: '\uDC00\uDC00', wells: {}})));
+    const b = await PM.png(); eq(b.type, 'image/png');
+  } finally { if (native) W.String.prototype.toWellFormed = native; }
+});
+test('arrow keys continue from a header selection', async () => {
+  await boot();
+  ptr('pointerdown', $('[data-r="7"]'));
+  key('ArrowUp'); eq(PM.selection(), ['G12']);
+});
+test('group ids named like Object properties are handled', async () => {
+  await boot();
+  assert(PM.open(JSON.stringify({plate: 96, groups: [{id: 'constructor', name: 'a', color: '#111111'}, {id: '__proto__', name: 'b', color: '#222222'}], wells: {A1: {g: 'constructor'}, A2: {g: '__proto__'}}})));
+  eq($$('.grp .n').map(e => e.textContent), ['1', '1']);
+});
+test('typing then clicking a button without blur (Safari) is still one undo step', async () => {
+  await boot();
+  const t = $('#title'); t.value = 'Exp 1'; t.dispatchEvent(new W.Event('input', {bubbles: true}));
+  $('#undoBtn').click();
+  eq(st().title, ''); eq(t.value, '', 'input shows the restored value');
+  $('#redoBtn').click(); eq(st().title, 'Exp 1');
+});
+test('typing, then a discrete edit, undo twice: each is its own step', async () => {
+  await boot();
+  const t = $('#title'); t.value = 'Exp 2'; t.dispatchEvent(new W.Event('input', {bubbles: true}));
+  clickWell('A1'); chip(0).click();
+  $('#undoBtn').click(); assert(!st().wells.A1, 'well undone first'); eq(st().title, 'Exp 2');
+  $('#undoBtn').click(); eq(st().title, '');
+});
+test('colour change with the picker still open is undoable', async () => {
+  await boot();
+  const before = st().groups[0].color, c = $('.grp input[type=color]');
+  c.value = '#000000'; c.dispatchEvent(new W.Event('input', {bubbles: true}));
+  $('#undoBtn').click(); eq(st().groups[0].color, before);
+});
+test('shortcuts still work while the numbering checkbox or a colour swatch has focus', async () => {
+  await boot();
+  clickWell('A1');
+  $('#lblNum').focus(); keyOn($('#lblNum'), '1'); assert(st().wells.A1 && st().wells.A1.g, 'digit assigns');
+  $('.grp input[type=color]').focus(); keyOn($('.grp input[type=color]'), 'z', {ctrlKey: true}); assert(!st().wells.A1, 'ctrl+z undoes');
+});
+test('no-op edits do not add undo steps or wipe redo', async () => {
+  await boot();
+  clickWell('A1'); chip(0).click(); $('#undoBtn').click();
+  key('Delete'); key('0'); chip($$('#selBar [data-g]').length - 1).click();
+  $('#redoBtn').click(); assert(st().wells.A1, 'redo survived no-op edits');
+});
+test('Ctrl+Z in the middle of a drag cannot leave wells outside the plate', async () => {
+  await boot();
+  $('[data-p="6"]').click(); $('[data-p="96"]').click();
+  ptr('pointerdown', wellHit('H12'));
+  key('z', {ctrlKey: true}); eq(st().plate, 6);
+  ptr('pointermove', wellHit('A1')); ptr('pointerup', wellHit('A1'));
+  key('1');
+  assert(Object.keys(st().wells).every(w => /^[AB][123]$/.test(w)), 'out-of-range wells: ' + Object.keys(st().wells));
+});
+test('Escape forgets the keyboard cursor', async () => {
+  await boot();
+  clickWell('D5'); key('Escape'); $('#plate').focus();
+  key('ArrowRight', {shiftKey: true}); eq(PM.selection(), ['A1']);
+});
+test('U+FFFE / U+FFFF and non-text JSON values are handled', async () => {
+  await boot();
+  const bad = 'bad' + String.fromCharCode(0xFFFE, 0xFFFF);
+  assert(PM.open(JSON.stringify({plate: 96, groups: [{id: 'g', name: bad, color: '#111111'}], title: bad, wells: {A1: {g: 'g', t: bad}}})));
+  eq(st().title, 'bad'); eq(st().wells.A1.t, 'bad');
+  eq(new DOMParser().parseFromString(PM.svg(), 'image/svg+xml').getElementsByTagName('parsererror').length, 0);
+  const obj = {toString: 1, valueOf: 1};
+  const d = PM.normalize({plate: 96, title: obj, notes: obj, groups: [{id: obj, name: obj, color: obj}], wells: {A1: {g: obj, t: obj}}});
+  eq(d.title, ''); eq(d.groups.length, 1); eq(d.wells, {});
+  eq(PM.normalize({plate: obj, groups: []}), null);
+});
+test('CSV formula guard also covers labels with leading whitespace', async () => {
+  await boot();
+  assert(PM.open(JSON.stringify({plate: 96, groups: [], wells: {A1: {t: '\t=1+1'}, A2: {t: ' @x'}, A3: {t: ' -3 '}}})));
+  const rows = PM.csv().replace(/^﻿/, '').split('\r\n');
+  eq(rows[1], "A1,A,1,,'=1+1,"); eq(rows[2], "A2,A,2,,'@x,"); eq(rows[3], 'A3,A,3,,-3,');
+});
+test('the test page never touches the real autosave', async () => {
+  eq(localStorage.getItem(REAL), realBefore);
+});
+
+/* ---------------- runner ---------------- */
+(async () => {
+  const lines = []; let pass = 0;
+  for (const t of tests) {
+    try { await t.fn(); pass++; lines.push(`<span class="pass">✓</span> ${t.name}`); }
+    catch (e) { lines.push(`<span class="fail">✗ ${t.name}\n    ${String(e && e.message || e).replace(/</g, '&lt;')}</span>`); }
+    out.innerHTML = lines.join('\n');
+  }
+  const summary = `${pass === tests.length ? 'PASS' : 'FAIL'} ${pass}/${tests.length}`;
+  out.innerHTML = `<b>${summary}</b>\n\n` + lines.join('\n');
+  document.title = summary;
+  localStorage.removeItem(STORE);
+})();
+</script>
+</body>
+</html>
