@@ -69,6 +69,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .exp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .exp .btn{text-align:left;padding:8px 10px}
 .exp .btn small{display:block;color:var(--muted);font-size:11px}
+.exp .wide{grid-column:span 2}
 .foot{font-size:12px;color:var(--muted);margin-top:8px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s;font-size:13px;z-index:10;max-width:calc(100vw - 32px)}
 .toast.show{opacity:1;transform:translateX(-50%)}
@@ -186,8 +187,9 @@ body.nocalc aside.calc{display:none}
       <button class="btn" data-x="svg">SVG<small>Editable vector</small></button>
       <button class="btn" data-x="pdf">PDF / Print<small>Save as PDF in dialog</small></button>
       <button class="btn" data-x="copy">Copy image<small>Paste into Word, PPT</small></button>
-      <button class="btn" data-x="csv">CSV<small>Well list for Excel</small></button>
-      <button class="btn" data-x="json">Save .json<small>Reopen &amp; edit later</small></button>
+      <button class="btn" data-x="xlsx">Excel<small>Well list, .xlsx</small></button>
+      <button class="btn" data-x="csv">CSV<small>Well list, any tool</small></button>
+      <button class="btn wide" data-x="json">Save .json<small>Reopen &amp; edit later</small></button>
     </div>
     <p class="foot">Everything stays in your browser. Your current map is kept here between visits; save a .json to keep it for good.</p>
   </section>
@@ -798,6 +800,62 @@ function csvFile() {
   }
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
+/* Excel: a minimal .xlsx (a zip of a few XML files). Every label is an inline string, so Excel never
+   turns it into a date or number or runs it as a formula, and no apostrophe guard is needed. */
+let CRC;
+function crc32(b) {
+  if (!CRC) CRC = Array.from({length: 256}, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xEDB88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+  let c = -1;
+  for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8);
+  return (c ^ -1) >>> 0;
+}
+function zip(files) {                                   // stored (uncompressed) entries, which every reader accepts
+  const enc = new TextEncoder(), parts = [], cen = [];
+  let off = 0;
+  const hdr = (sig, f, central) => {
+    const h = new DataView(new ArrayBuffer(central ? 46 : 30)); let i = 0;
+    const u32 = v => { h.setUint32(i, v, true); i += 4; }, u16 = v => { h.setUint16(i, v, true); i += 2; };
+    u32(sig); if (central) u16(20); u16(20); u16(0); u16(0); u16(0); u16(0x21);   // versions, flags, stored, 1980-01-01
+    u32(f.crc); u32(f.data.length); u32(f.data.length); u16(f.name.length); u16(0);
+    if (central) { u16(0); u16(0); u16(0); u32(0); u32(f.off); }
+    return new Uint8Array(h.buffer);
+  };
+  for (const [name, text] of files) {
+    const f = {name: enc.encode(name), data: enc.encode(text), off};
+    f.crc = crc32(f.data);
+    const h = hdr(0x04034b50, f);
+    parts.push(h, f.name, f.data); off += h.length + f.name.length + f.data.length;
+    cen.push(hdr(0x02014b50, f, true), f.name);
+  }
+  const size = cen.reduce((n, a) => n + a.length, 0), end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, end.buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function xlsxFile() {
+  const [R, C] = PLATES[state.plate], gmap = new Map(state.groups.map(g => [g.id, g]));
+  const col = i => String.fromCharCode(65 + i);
+  const str = (ref, v, s) => v === '' ? '' : `<c r="${ref}" t="inlineStr"${s ? ' s="1"' : ''}><is><t xml:space="preserve">${esc(v)}</t></is></c>`;
+  const row = (n, cells) => `<row r="${n}">${cells.join('')}</row>`;
+  const rows = [row(1, ['Well', 'Row', 'Column', 'Group', 'Label', 'Colour'].map((h, i) => str(col(i) + 1, h, true)))];
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const id = wid(r, c), w = state.wells[id] || {}, g = w.g && gmap.get(w.g), n = rows.length + 1;
+    rows.push(row(n, [str('A' + n, id), str('B' + n, rowName(r)), `<c r="C${n}"><v>${c + 1}</v></c>`,
+      str('D' + n, g ? (g.name.trim() || 'Untitled') : ''), str('E' + n, w.t || ''), str('F' + n, g ? g.color : '')]));
+  }
+  const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const widths = [7, 6, 8, 24, 32, 10].map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+  return zip([
+    ['[Content_Types].xml', XML + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', XML + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', XML + `<workbook ${NS} xmlns:r="${REL}"><sheets><sheet name="Plate map" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels', XML + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', XML + `<styleSheet ${NS}><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+    ['xl/worksheets/sheet1.xml', XML + `<worksheet ${NS}><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths}</cols><sheetData>${rows.join('')}</sheetData></worksheet>`]
+  ]);
+}
 const jsonFile = () => JSON.stringify({app: 'plate-map', version: 1, ...state}, null, 2);
 function preparePrint() { $('#print').innerHTML = buildSVG(true).svg; }
 window.addEventListener('beforeprint', preparePrint);
@@ -810,6 +868,7 @@ document.querySelector('.exp').addEventListener('click', async e => {
   try {
     if (x === 'png') download(baseName() + '.png', await pngBlob());
     if (x === 'svg') download(baseName() + '.svg', new Blob([svgFile()], {type: 'image/svg+xml'}));
+    if (x === 'xlsx') download(baseName() + '.xlsx', xlsxFile());
     if (x === 'csv') download(baseName() + '.csv', new Blob([csvFile()], {type: 'text/csv;charset=utf-8'}));
     if (x === 'json') download(baseName() + '.json', new Blob([jsonFile()], {type: 'application/json'}));
     if (x === 'pdf') { preparePrint(); window.print(); }
@@ -1058,7 +1117,7 @@ window.plateMap = Object.freeze({
   state: () => JSON.parse(JSON.stringify(state)),
   selection: () => sortedSel('row'),
   open: text => openText(text),
-  svg: () => svgFile(), csv: () => csvFile(), json: () => jsonFile(),
+  svg: () => svgFile(), csv: () => csvFile(), xlsx: () => xlsxFile(), json: () => jsonFile(),
   fileName: () => baseName(), png: () => pngBlob(), normalize: d => normalize(d),
   calc: () => calcResult(), calcInputs: () => ({...calc}), parseNum: v => parseNum(v), calcSummary: () => { const r = calcResult(); return r.missing ? '' : calcSummary(r); }
 });

@@ -7,7 +7,9 @@ A single-page tool for laying out cell culture plates (6, 12, 24, 48, 96 or 384 
 1. Pick a plate size, and add a title and notes if you want them.
 2. Make groups (name + colour).
 3. Click or drag across wells, then assign a group or type a label (optionally numbered 1, 2, 3…).
-4. Export as PNG, SVG (editable vector), PDF (via print), CSV (well list) or copy the image to the clipboard. Save a `.json` to reopen and edit later.
+4. Export as PNG, SVG (editable vector), PDF (via print), Excel `.xlsx` or CSV (well list), or copy the image to the clipboard. Save a `.json` to reopen and edit later.
+
+   For Excel, use the `.xlsx`: every label is stored as text, so `1/10`, `0012` or `=1+1` stay exactly as typed. Excel can change the same labels when it opens a CSV (dates, dropped zeros), and CSV labels starting with `=`, `+`, `-` or `@` get a leading `'` so spreadsheets don't run them as formulas.
 
 Shortcuts: `1`–`9` assign a group, `0` removes it, `Delete` clears wells, `Esc` deselects, `Ctrl+Z` undoes, `Ctrl+Y` redoes, `Ctrl+A` selects all, and arrow keys (with `Shift` to extend) move the selection. On touch screens, tap wells to select or deselect them.
 

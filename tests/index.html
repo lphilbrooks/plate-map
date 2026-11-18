@@ -308,10 +308,10 @@ test('PNG export renders a real image for the biggest and smallest plates', asyn
 test('export buttons trigger downloads with sensible names', async () => {
   await boot();
   type($('#title'), 'Exp');
-  for (const x of ['svg', 'csv', 'json', 'png']) $(`[data-x="${x}"]`).click(), await sleep(20);
+  for (const x of ['svg', 'csv', 'xlsx', 'json', 'png']) $(`[data-x="${x}"]`).click(), await sleep(20);
   // PNG rendering is async and slow on software-rendered phones, so wait for it rather than a fixed delay.
-  for (let i = 0; i < 100 && W.__downloads.length < 4; i++) await sleep(50);
-  eq(W.__downloads.sort(), ['Exp.csv', 'Exp.json', 'Exp.png', 'Exp.svg']);
+  for (let i = 0; i < 100 && W.__downloads.length < 5; i++) await sleep(50);
+  eq(W.__downloads.sort(), ['Exp.csv', 'Exp.json', 'Exp.png', 'Exp.svg', 'Exp.xlsx']);
 });
 
 /* ---------------- layout ---------------- */
@@ -563,6 +563,50 @@ test('screen readers hear the well under the keyboard cursor', async () => {
   key('ArrowDown'); eq($('#live').textContent, 'C3, empty. 1 well selected');
   $('[data-p="384"]').click();
   assert(/384-well plate/.test(plate.getAttribute('aria-label')), 'label follows the plate size');
+});
+/* Reads a stored (uncompressed) zip through its central directory and checks each CRC. */
+async function unzip(blob) {
+  const b = new Uint8Array(await blob.arrayBuffer()), v = new DataView(b.buffer), out = {}, dec = new TextDecoder();
+  let e = b.length - 22; while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--;
+  assert(e >= 0, 'no end-of-central-directory record');
+  let p = v.getUint32(e + 16, true);
+  for (let n = v.getUint16(e + 10, true); n > 0; n--) {
+    assert(v.getUint32(p, true) === 0x02014b50, 'bad central header');
+    const crc = v.getUint32(p + 16, true), size = v.getUint32(p + 20, true), nl = v.getUint16(p + 28, true), off = v.getUint32(p + 42, true);
+    const name = dec.decode(b.subarray(p + 46, p + 46 + nl));
+    assert(v.getUint32(off, true) === 0x04034b50 && v.getUint16(off + 8, true) === 0, name + ': bad local header or not stored');
+    const start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true), data = b.subarray(start, start + size);
+    let c = -1; for (const x of data) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; }
+    eq((c ^ -1) >>> 0, crc, name + ' CRC');
+    out[name] = dec.decode(data); p += 46 + nl + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+  }
+  return out;
+}
+test('Excel export: valid .xlsx, every label kept as text, no formulas or apostrophes', async () => {
+  await boot();
+  assert(PM.open(JSON.stringify({plate: 96, groups: [{id: 'g', name: '=SUM(A1:A3) & <b>', color: '#abcdef'}],
+    wells: {A1: {g: 'g', t: '=1+1'}, A2: {t: '3/4'}, A3: {t: '0012'}, B1: {t: 'µM 🧪 "q"'}, H12: {g: 'g', t: '12345678901234567890'}}})));
+  const blob = PM.xlsx();
+  eq(blob.type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  const f = await unzip(blob);
+  eq(Object.keys(f).sort(), ['[Content_Types].xml', '_rels/.rels', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml']);
+  for (const [n, x] of Object.entries(f)) assert(!new DOMParser().parseFromString(x, 'application/xml').querySelector('parsererror'), n + ' is not well-formed XML');
+  const sh = new DOMParser().parseFromString(f['xl/worksheets/sheet1.xml'], 'application/xml');
+  eq(sh.getElementsByTagName('row').length, 97, 'header + 96 wells');
+  eq(sh.getElementsByTagName('f').length, 0, 'no formulas');
+  const cell = r => { const c = [...sh.getElementsByTagName('c')].find(x => x.getAttribute('r') === r); return c && {t: c.getAttribute('t'), v: c.textContent}; };
+  eq(cell('A1'), {t: 'inlineStr', v: 'Well'});
+  eq(cell('E2'), {t: 'inlineStr', v: '=1+1'}, 'A1 label');
+  eq(cell('D2'), {t: 'inlineStr', v: '=SUM(A1:A3) & <b>'}, 'group name');
+  eq(cell('E3'), {t: 'inlineStr', v: '3/4'}); eq(cell('E4'), {t: 'inlineStr', v: '0012'});
+  eq(cell('E14'), {t: 'inlineStr', v: 'µM 🧪 "q"'}, 'B1 label');
+  eq(cell('E97'), {t: 'inlineStr', v: '12345678901234567890'}, 'H12 label');
+  eq(cell('C97'), {t: null, v: '12'}, 'column number is a number');
+  eq(cell('F97'), {t: 'inlineStr', v: '#abcdef'});
+  assert(!cell('E5'), 'empty cells are left out');
+  PM.open(JSON.stringify({plate: 384, groups: [], wells: {P24: {t: 'last'}}}));
+  const big = new DOMParser().parseFromString((await unzip(PM.xlsx()))['xl/worksheets/sheet1.xml'], 'application/xml');
+  eq(big.getElementsByTagName('row').length, 385, '384-well rows');
 });
 test('the test page never touches the real autosave', async () => {
   eq(localStorage.getItem(REAL), realBefore);
